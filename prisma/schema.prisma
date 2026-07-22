@@ -87,7 +87,7 @@ model Conference {
 
   isFree Boolean @default(false) @map("is_free")
 
-  status ConferenceStatus
+  status ConferenceStatus @default(DRAFT)
 
   organizerId Int @map("organizer_id")
   categoryId  Int @map("category_id")
