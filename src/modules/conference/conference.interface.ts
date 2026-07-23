@@ -11,3 +11,12 @@ export interface CreateConferenceDTO {
 
 export interface UpdateConferenceDTO 
 extends Partial<CreateConferenceDTO> {}
+
+export interface ConferenceQuery {
+    search?: string;
+    city?: string;
+    categoryId?: number;
+    isFree?: boolean;
+    page?: number;
+    limit?: number;
+}
