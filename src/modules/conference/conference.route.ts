@@ -12,5 +12,7 @@ export class ConferenceRoute {
     this.router.post("/", conferenceController.create.bind(conferenceController));
     this.router.get("/", conferenceController.findAll.bind(conferenceController));
     this.router.get("/:id", conferenceController.findById.bind(conferenceController));
+    this.router.patch("/:id", conferenceController.update.bind(conferenceController));
+    this.router.delete("/:id", conferenceController.delete.bind(conferenceController));
   }
 }

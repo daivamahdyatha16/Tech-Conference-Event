@@ -1,5 +1,5 @@
 import { ConferenceStatus } from "@prisma/client";
-import { CreateConferenceDTO } from "./conference.interface";
+import { CreateConferenceDTO, UpdateConferenceDTO } from "./conference.interface";
 import { ConferenceRepository } from "./conference.repository";
 
 export class ConferenceService {
@@ -40,7 +40,39 @@ export class ConferenceService {
     return this.conferenceRepository.findById(id);
   }
 
-  async update() {}
+async update(id: number, dto: UpdateConferenceDTO) {
+  const conference = await this.conferenceRepository.findById(id);
 
-  async delete() {}
+  if (!conference) {
+    throw new Error("Conference tidak ditemukan");
+  }
+
+  const data = {
+    title: dto.title,
+    description: dto.description,
+    city: dto.city,
+    venue: dto.venue,
+    startDate: dto.startDate,
+    endDate: dto.endDate,
+    isFree: dto.isFree,
+    category: dto.categoryId
+      ? {
+          connect: {
+            id: dto.categoryId,
+          },
+        }
+      : undefined,
+  };
+
+  return this.conferenceRepository.update(id, data);
+}
+  async delete(id: number) {
+    const conference = await this.conferenceRepository.findById(id);
+
+    if (!conference) {
+      throw new Error("Conference tidak ditemukan");
+    }
+
+    return this.conferenceRepository.delete(id);
+  }
 }
