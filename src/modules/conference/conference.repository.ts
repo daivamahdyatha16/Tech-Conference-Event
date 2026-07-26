@@ -36,14 +36,22 @@ export class ConferenceRepository {
       where.isFree = query.isFree;
     }
 
-    return prisma.conference.findMany({
-      where,
-      skip: query.skip,
-      take: query.limit,
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const [data,total] = await prisma.$transaction([
+      prisma.conference.findMany({
+        where,
+        skip: query.skip,
+        take: query.limit,
+        orderBy: {
+          startDate: "desc",
+        },
+      }),
+      prisma.conference.count({
+        where,
+      }),
+    ]);
+    return {
+      data, total,
+    };
   }
   async update(id: number, data: Prisma.ConferenceUpdateInput) {
     return prisma.conference.update({

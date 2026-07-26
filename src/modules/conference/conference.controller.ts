@@ -42,7 +42,8 @@ export class ConferenceController {
 
       return res.status(200).json({
         message: "Success",
-        data: result,
+        data: result.data,
+        meta: result.meta
       });
     } catch (error) {
       next(error);

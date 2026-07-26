@@ -43,12 +43,20 @@ export class ConferenceService {
 
     const skip = (page - 1) * limit;
 
-    return this.conferenceRepository.findAll({
+    const result = await this.conferenceRepository.findAll({
       ...query,
-      page,
-      limit,
       skip,
+      limit,
     });
+    return {
+      data : result.data,
+      meta: {
+        page,
+        limit,
+        totalData: result.total,
+        totalPage: Math.ceil(result.total / limit),
+      },
+    }
   }
 
   async findById(id: number) {
