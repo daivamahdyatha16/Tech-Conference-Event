@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { ConferenceService } from "./conference.service";
 import {
   createConferenceSchema,
@@ -9,7 +9,7 @@ import { ConferenceQuery } from "./conference.interface";
 export class ConferenceController {
   private conferenceService = new ConferenceService();
 
-  async create(req: Request, res: Response) {
+  async create(req: Request, res: Response, next: NextFunction) {
     try {
       const organizerId = 1;
 
@@ -22,14 +22,11 @@ export class ConferenceController {
         data: result,
       });
     } catch (error) {
-      return res.status(500).json({
-        message: "Internal Server Error",
-        error,
-      });
+      next(error);
     }
   }
 
-  async findAll(req: Request, res: Response) {
+  async findAll(req: Request, res: Response, next: NextFunction) {
     try {
       const query: ConferenceQuery = {
         search: req.query.search as string,
@@ -42,21 +39,17 @@ export class ConferenceController {
         limit: req.query.limit ? Number(req.query.limit) : undefined,
       };
       const result = await this.conferenceService.findAll(query);
-      
 
       return res.status(200).json({
         message: "Success",
         data: result,
       });
     } catch (error) {
-      return res.status(500).json({
-        message: "Internal Server Error",
-        error: error instanceof Error ? error.message : error,
-      });
+      next(error);
     }
   }
 
-  async findById(req: Request, res: Response) {
+  async findById(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
 
@@ -67,14 +60,11 @@ export class ConferenceController {
         data: result,
       });
     } catch (error) {
-      return res.status(500).json({
-        message: "Internal Server Error",
-        error,
-      });
+      next(error);
     }
   }
 
-  async update(req: Request, res: Response) {
+  async update(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
 
@@ -87,15 +77,10 @@ export class ConferenceController {
         data: result,
       });
     } catch (error) {
-      console.error(error);
-
-      return res.status(500).json({
-        message: "Internal Server Error",
-        error: error instanceof Error ? error.message : error,
-      });
+      next(error);
     }
   }
-  async delete(req: Request, res: Response) {
+  async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
 
@@ -105,10 +90,7 @@ export class ConferenceController {
         message: "Conference berhasil dihapus",
       });
     } catch (error) {
-      return res.status(500).json({
-        message: "Internal Server Error",
-        error: error instanceof Error ? error.message : error,
-      });
+      next(error);
     }
   }
 }

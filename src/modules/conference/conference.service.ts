@@ -5,6 +5,7 @@ import {
   UpdateConferenceDTO,
 } from "./conference.interface";
 import { ConferenceRepository } from "./conference.repository";
+import { NotFoundError } from "../../errors/NotFoundError";
 
 export class ConferenceService {
   private conferenceRepository = new ConferenceRepository();
@@ -42,19 +43,26 @@ export class ConferenceService {
 
     const skip = (page - 1) * limit;
 
-    return this.conferenceRepository.findAll({...query, page, limit, skip });
+    return this.conferenceRepository.findAll({
+      ...query,
+      page,
+      limit,
+      skip,
+    });
   }
 
   async findById(id: number) {
-    return this.conferenceRepository.findById(id);
-  }
-
-  async update(id: number, dto: UpdateConferenceDTO) {
     const conference = await this.conferenceRepository.findById(id);
 
     if (!conference) {
-      throw new Error("Conference tidak ditemukan");
+      throw new NotFoundError("Conference tidak ditemukan");
     }
+
+    return conference;
+  }
+
+  async update(id: number, dto: UpdateConferenceDTO) {
+    await this.findById(id);
 
     const data = {
       title: dto.title,
@@ -75,12 +83,9 @@ export class ConferenceService {
 
     return this.conferenceRepository.update(id, data);
   }
-  async delete(id: number) {
-    const conference = await this.conferenceRepository.findById(id);
 
-    if (!conference) {
-      throw new Error("Conference tidak ditemukan");
-    }
+  async delete(id: number) {
+    await this.findById(id);
 
     return this.conferenceRepository.delete(id);
   }
