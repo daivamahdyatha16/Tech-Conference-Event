@@ -1,33 +1,19 @@
-/// <reference types="node" />
-
 import { PrismaClient } from "@prisma/client";
+import { seedCategories } from "./seeds/categories";
+import { seedUsers } from "./seeds/users";
+import { seedConferences } from "./seeds/conferences";
+import { seedTicketTypes } from "./seeds/ticket-types";
 
 const prisma = new PrismaClient();
 
-async function seedCategories() {
-  await prisma.category.createMany({
-    data: [
-      { name: "Artificial Intelligence" },
-      { name: "Software Engineering" },
-      { name: "Cyber Security" },
-      { name: "Data Science" },
-      { name: "Cloud Computing" },
-      { name: "Machine Learning" },
-      { name: "Fullstack Development" },
-      { name: "Game Development" },
-      { name: "Mobile Development" },
-      { name: "Blockchain & Web3" },
-    ],
-    skipDuplicates: true,
-  });
-
-  console.log("✅ Categories seeded.");
-}
 
 async function main() {
   console.log("🌱 Start seeding...");
 
   await seedCategories();
+  await seedUsers();
+  await seedConferences();
+  await seedTicketTypes();
 
   console.log("✅ Seed finished.");
 }

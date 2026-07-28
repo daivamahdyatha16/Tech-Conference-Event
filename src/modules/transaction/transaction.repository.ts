@@ -21,4 +21,13 @@ export class TransactionRepository {
       },
     });
   }
+
+  async update(id: number,data:Prisma.TransactionUpdateInput) {
+    return prisma.transaction.update({
+      where:{
+        id,
+      },
+      data,
+    });
+  }
 }

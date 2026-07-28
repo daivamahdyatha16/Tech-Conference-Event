@@ -1,5 +1,5 @@
 import { addHours } from "date-fns";
-import { ConferenceStatus } from "@prisma/client";
+import { ConferenceStatus, TransactionStatus } from "@prisma/client";
 
 import { TransactionRepository } from "./transaction.repository";
 import { TicketTypeRepository } from "../ticket/ticket-type.repository";
@@ -27,11 +27,11 @@ export class TransactionService {
     }
 
     if (ticketType.availableSeat < quantity) {
-    throw new AppError("Kursi tidak mencukupi", 400);
+      throw new AppError("Kursi tidak mencukupi", 400);
     }
 
     const conference = await this.conferenceRepository.findById(
-      ticketType.conferenceId
+      ticketType.conferenceId,
     );
 
     if (!conference) {
@@ -40,10 +40,6 @@ export class TransactionService {
 
     if (conference.status !== ConferenceStatus.PUBLISHED) {
       throw new AppError("Conference belum dipublish", 400);
-    }
-
-    if (ticketType.availableSeat < quantity) {
-      throw new AppError("Kursi tidak mencukupi", 400);
     }
 
     const subtotal = ticketType.price * quantity;
@@ -93,5 +89,80 @@ export class TransactionService {
     });
 
     return transaction;
+  }
+
+  async uploadPaymentProof(transactionId: number, paymentProof: string) {
+    const transaction =
+      await this.transactionRepository.findById(transactionId);
+
+    if (!transaction) {
+      throw new NotFoundError("Transaksi tidak ditemukan");
+    }
+
+    if (transaction.status !== TransactionStatus.WAITING_PAYMENT) {
+      throw new AppError(
+        "Transaksi tidak dapat mengunggah bukti pembayaran",
+        400,
+      );
+    }
+
+    return await this.transactionRepository.update(transactionId, {
+      paymentProof,
+      paymentDate: new Date(),
+      status: TransactionStatus.WAITING_CONFIRMATION,
+    });
+  }
+
+  async approveTransaction(transactionId: number, approvedBy: number) {
+    const transaction =
+      await this.transactionRepository.findById(transactionId);
+
+    if (!transaction) {
+      throw new NotFoundError("Transaksi tidak ditemukan");
+    }
+
+    if (transaction.status !== TransactionStatus.WAITING_CONFIRMATION) {
+      throw new AppError("Transaksi tidak dapat disetujui", 400);
+    }
+
+    return await this.transactionRepository.update(transactionId, {
+      status: TransactionStatus.APPROVED,
+    });
+  }
+
+  async rejectTransaction(transactionId: number, approvedBy: number) {
+    const transaction =
+      await this.transactionRepository.findById(transactionId);
+
+    if (!transaction) {
+      throw new NotFoundError("Transaksi tidak ditemukan");
+    }
+
+    if (transaction.status !== TransactionStatus.WAITING_CONFIRMATION) {
+      throw new AppError("Transaksi tidak dapat ditolak", 400);
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      await tx.ticketType.update({
+        where: {
+          id: transaction.ticketTypeId,
+        },
+        data: {
+          availableSeat: {
+            increment: transaction.quantity,
+          },
+        },
+      });
+
+      return await tx.transaction.update({
+        where: {
+          id: transactionId,
+        },
+        data: {
+          status: TransactionStatus.REJECTED,
+          approvedBy,
+        },
+      });
+    });
   }
 }
