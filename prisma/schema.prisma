@@ -146,7 +146,7 @@ model Review {
   userId       Int        @map("user_id")
   conferenceId Int        @map("conference_id")
   rating       Int
-  comment      String?
+  comment      String
   createdAt    DateTime   @default(now()) @map("created_at")
   conference   Conference @relation(fields: [conferenceId], references: [id])
   user         User       @relation(fields: [userId], references: [id])
