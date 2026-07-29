@@ -1,13 +1,189 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   Int            @id @default(autoincrement())
+  fullName             String         @map("full_name")
+  email                String         @unique
+  password             String
+  role                 UserRole
+  referralCode         String?        @unique @map("referral_code")
+  phoneNumber          String?        @map("phone_number")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  organizedConferences Conference[]
+  coupons              Coupon[]
+  pointHistories       PointHistory[]
+  reviews              Review[]
+  transactions         Transaction[]
+
+  @@map("users")
+}
+
+model Category {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  conferences Conference[]
+
+  @@map("categories")
+}
+
+model Conference {
+  id           Int              @id @default(autoincrement())
+  title        String
+  description  String
+  city         String
+  venue        String
+  thumbnail    String?
+  startDate    DateTime         @map("start_date")
+  endDate      DateTime         @map("end_date")
+  isFree       Boolean          @default(false) @map("is_free")
+  status       ConferenceStatus @default(DRAFT)
+  organizerId  Int              @map("organizer_id")
+  categoryId   Int              @map("category_id")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  category     Category         @relation(fields: [categoryId], references: [id])
+  organizer    User             @relation(fields: [organizerId], references: [id])
+  promotions   Promotion[]
+  reviews      Review[]
+  ticketTypes  TicketType[]
+  transactions Transaction[]
+
+  @@map("conferences")
+}
+
+model TicketType {
+  id            Int           @id @default(autoincrement())
+  conferenceId  Int           @map("conference_id")
+  name          String
+  description   String?
+  price         Float
+  quota         Int
+  availableSeat Int           @map("available_seat")
+  conference    Conference    @relation(fields: [conferenceId], references: [id])
+  transactions  Transaction[]
+
+  @@map("ticket_types")
+}
+
+model Promotion {
+  id            Int           @id @default(autoincrement())
+  conferenceId  Int           @map("conference_id")
+  promotionType PromotionType @map("promotion_type")
+  discountType  DiscountType  @map("discount_type")
+  discountValue Float         @map("discount_value")
+  quota         Int?
+  usageCount    Int           @default(0) @map("usage_count")
+  startDate     DateTime      @map("start_date")
+  endDate       DateTime      @map("end_date")
+  conference    Conference    @relation(fields: [conferenceId], references: [id])
+
+  @@map("promotions")
+}
+
+model Coupon {
+  id            Int           @id @default(autoincrement())
+  userId        Int           @map("user_id")
+  discountType  DiscountType  @map("discount_type")
+  discountValue Float         @map("discount_value")
+  expiredAt     DateTime      @map("expired_at")
+  usedAt        DateTime?     @map("used_at")
+  isUsed        Boolean       @default(false) @map("is_used")
+  user          User          @relation(fields: [userId], references: [id])
+  transactions  Transaction[]
+
+  @@map("coupons")
+}
+
+model PointHistory {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  point       Int
+  type        PointType
+  description String?
+  expiredAt   DateTime? @map("expired_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("point_histories")
+}
+
+model Transaction {
+  id           Int               @id @default(autoincrement())
+  userId       Int               @map("user_id")
+  conferenceId Int               @map("conference_id")
+  ticketTypeId Int               @map("ticket_type_id")
+  couponId     Int?              @map("coupon_id")
+  quantity     Int
+  subtotal     Float
+  discount     Float             @default(0)
+  pointUsed    Int               @default(0) @map("point_used")
+  totalPrice   Float             @map("total_price")
+  paymentProof String?           @map("payment_proof")
+  paymentDate  DateTime?         @map("payment_date")
+  expiresAt    DateTime          @map("expires_at")
+  status       TransactionStatus
+  createdAt    DateTime          @default(now()) @map("created_at")
+  conference   Conference        @relation(fields: [conferenceId], references: [id])
+  coupon       Coupon?           @relation(fields: [couponId], references: [id])
+  ticketType   TicketType        @relation(fields: [ticketTypeId], references: [id])
+  user         User              @relation(fields: [userId], references: [id])
+
+  @@map("transactions")
+}
+
+model Review {
+  id           Int        @id @default(autoincrement())
+  userId       Int        @map("user_id")
+  conferenceId Int        @map("conference_id")
+  rating       Int
+  comment      String
+  createdAt    DateTime   @default(now()) @map("created_at")
+  conference   Conference @relation(fields: [conferenceId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@map("reviews")
+}
+
+enum UserRole {
+  ORGANIZER
+  ATTENDEE
+}
+
+enum ConferenceStatus {
+  DRAFT
+  PUBLISHED
+  ENDED
+}
+
+enum PromotionType {
+  REFERRAL_CODE
+  EVENT_PROMO
+}
+
+enum DiscountType {
+  PERCENTAGE
+  NOMINAL
+}
+
+enum PointType {
+  EARN
+  REDEEM
+}
+
+enum TransactionStatus {
+  WAITING_PAYMENT
+  WAITING_CONFIRMATION
+  APPROVED
+  CANCELLED
+  REJECTED
 }
