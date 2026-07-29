@@ -15,7 +15,6 @@ export class TicketTypeService {
     conferenceId: number,
     dto: CreateTicketTypeDTO
   ) {
-    // cek conference
     const conference = await this.conferenceRepository.findById(conferenceId);
 
     if (!conference) {
@@ -70,7 +69,7 @@ export class TicketTypeService {
     const ticket = await this.ticketTypeRepository.findById(id);
 
     if (!ticket) {
-      throw new Error("Ticket type tidak ditemukan");
+      throw new Error("Jenis tiket tidak ditemukan");
     }
 
     return ticket;
