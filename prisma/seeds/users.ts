@@ -9,7 +9,6 @@ export async function seedUsers() {
 
   await prisma.user.createMany({
     data: [
-      // ORGANIZER
       {
         fullName: "Nusantara Tech Solutions",
         email: "contact@nusantaratech.id",
@@ -35,7 +34,6 @@ export async function seedUsers() {
         phoneNumber: "083333333333",
       },
 
-      // ATTENDEE
       {
         fullName: "Andi Pratama",
         email: "andi.pratama@mail.com",
