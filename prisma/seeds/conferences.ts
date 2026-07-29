@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 
 export async function seedConferences() {
   const conferences = [
-    // ================= JAKARTA =================
     {
       title: "Indonesia AI Summit 2026",
       description:
@@ -46,7 +45,6 @@ export async function seedConferences() {
       categoryId: 9,
     },
 
-    // ================= BANDUNG =================
     {
       title: "Bandung Software Engineering Conference",
       description:
@@ -85,7 +83,6 @@ export async function seedConferences() {
       categoryId: 6,
     },
 
-    // ================= SURABAYA =================
     {
       title: "Surabaya Cyber Security Forum",
       description:
@@ -124,7 +121,6 @@ export async function seedConferences() {
       categoryId: 7,
     },
 
-    // ================= PADANG =================
     {
       title: "Padang Digital Innovation Summit",
       description:
@@ -164,7 +160,6 @@ export async function seedConferences() {
       categoryId: 3,
     },
 
-    // ================= YOGYAKARTA =================
     {
       title: "Yogyakarta Data Science Summit",
       description: "Data analytics, visualization, dan business intelligence.",
@@ -202,7 +197,6 @@ export async function seedConferences() {
       organizerId: 3,
       categoryId: 10,
     },
-    // ================= SEMARANG =================
     {
       title: "Semarang Tech Innovation Summit",
       description:
@@ -242,7 +236,6 @@ export async function seedConferences() {
       categoryId: 9,
     },
 
-    // ================= MEDAN =================
     {
       title: "North Sumatra AI Forum",
       description: "Artificial Intelligence untuk industri dan layanan publik.",
@@ -280,7 +273,6 @@ export async function seedConferences() {
       categoryId: 4,
     },
 
-    // ================= MAKASSAR =================
     {
       title: "Eastern Indonesia Tech Conference",
       description: "Konferensi teknologi terbesar di kawasan Indonesia Timur.",
@@ -318,7 +310,6 @@ export async function seedConferences() {
       categoryId: 7,
     },
 
-    // ================= DENPASAR =================
     {
       title: "Bali DevFest",
       description: "Festival teknologi untuk developer dan startup Indonesia.",
@@ -356,7 +347,6 @@ export async function seedConferences() {
       categoryId: 10,
     },
 
-    // ================= BATAM =================
     {
       title: "Batam Digital Economy Summit",
       description: "Digital economy, fintech, dan transformasi industri.",
