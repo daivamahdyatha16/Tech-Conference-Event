@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "outline";
 }
 
 const Button = ({
@@ -12,14 +12,17 @@ const Button = ({
   ...props
 }: ButtonProps) => {
   const baseStyle =
-    "rounded-lg px-5 py-2.5 font-medium transition duration-200";
+    "inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50";
 
   const variants = {
     primary:
-      "bg-blue-600 text-white hover:bg-blue-700",
+      "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-300/40",
 
     secondary:
-      "border border-gray-300 bg-white text-gray-900 hover:bg-gray-100",
+      "bg-slate-900 text-white hover:bg-slate-800",
+
+    outline:
+      "border border-slate-300 bg-white text-slate-700 hover:border-blue-600 hover:text-blue-600",
   };
 
   return (

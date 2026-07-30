@@ -11,7 +11,6 @@ const Navbar = () => {
 
         <div className="flex h-20 items-center justify-between">
 
-          {/* Logo */}
 
           <Link
             to="/"
@@ -20,7 +19,6 @@ const Navbar = () => {
             TechCon
           </Link>
 
-          {/* Navigation */}
 
           <nav className="hidden items-center gap-8 text-sm font-medium text-gray-600 lg:flex">
 
@@ -54,7 +52,6 @@ const Navbar = () => {
 
           </nav>
 
-          {/* Action */}
 
           <div className="hidden gap-3 lg:flex">
 

@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
 import { Calendar, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import type { Conference } from "../../types/conference";
 import Button from "../ui/Button";
@@ -10,48 +10,54 @@ interface ConferenceCardProps {
 
 const ConferenceCard = ({ conference }: ConferenceCardProps) => {
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
 
-      <img
-        src={conference.image}
-        alt={conference.title}
-        className="h-56 w-full object-cover"
-      />
+
+      <div className="overflow-hidden">
+        <img
+          src={conference.image}
+          alt={conference.title}
+          className="h-56 w-full object-cover transition-transform duration-500 hover:scale-105"
+        />
+      </div>
+
 
       <div className="space-y-4 p-5">
 
-        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+        <span className="inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
           {conference.category}
         </span>
 
-        <h3 className="line-clamp-2 text-xl font-bold">
+        <h3 className="line-clamp-2 text-xl font-bold text-gray-900">
           {conference.title}
         </h3>
 
-        <div className="space-y-2 text-gray-500">
+        <p className="line-clamp-2 text-sm text-gray-500">
+          {conference.description}
+        </p>
+
+        <div className="space-y-2 text-sm text-gray-600">
 
           <div className="flex items-center gap-2">
-            <MapPin size={18} />
-            {conference.location}
+            <MapPin size={16} />
+            <span>{conference.location}</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <Calendar size={18} />
-            {conference.date}
+            <Calendar size={16} />
+            <span>{conference.date}</span>
           </div>
 
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-3">
 
-          <p className="text-lg font-bold text-blue-600">
+          <h3 className="text-lg font-bold text-blue-600">
             IDR {conference.price.toLocaleString("id-ID")}
-          </p>
+          </h3>
 
           <Link to={`/conferences/${conference.id}`}>
-            <Button>
-              Details
-            </Button>
+            <Button>Details</Button>
           </Link>
 
         </div>

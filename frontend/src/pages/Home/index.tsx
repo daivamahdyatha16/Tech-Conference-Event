@@ -1,12 +1,14 @@
+import HeroSection from "../../components/home/HeroSection";
+import FeaturedSection from "../../components/home/FeaturedSection";
+import UpcomingSection from "../../components/home/UpcomingSection";
+
 const Home = () => {
   return (
-    <section className="mx-auto max-w-7xl p-8">
-
-      <h1 className="text-5xl font-bold">
-        Home Page
-      </h1>
-
-    </section>
+    <>
+      <HeroSection />
+      <FeaturedSection />
+      <UpcomingSection />
+    </>
   );
 };
 
