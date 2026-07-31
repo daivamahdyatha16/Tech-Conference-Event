@@ -2,9 +2,26 @@ export interface Conference {
   id: number;
   title: string;
   description: string;
-  image: string;
-  location: string;
-  date: string;
-  price: number;
-  category: string;
+  city: string;
+  venue: string;
+  thumbnail: string | null;
+  startDate: string;
+  endDate: string;
+  isFree: boolean;
+  status: string;
+  organizerId: number;
+  categoryId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConferenceResponse {
+  message: string;
+  data: Conference[];
+  meta: {
+    page: number;
+    limit: number;
+    totalData: number;
+    totalPage: number;
+  };
 }

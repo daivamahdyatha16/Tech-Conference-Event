@@ -15,7 +15,10 @@ const ConferenceCard = ({ conference }: ConferenceCardProps) => {
 
       <div className="overflow-hidden">
         <img
-          src={conference.image}
+          src={
+            conference.thumbnail ??
+            "https://placehold.co/600x400?text=No+Image"
+          }
           alt={conference.title}
           className="h-56 w-full object-cover transition-transform duration-500 hover:scale-105"
         />
@@ -25,7 +28,7 @@ const ConferenceCard = ({ conference }: ConferenceCardProps) => {
       <div className="space-y-4 p-5">
 
         <span className="inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-          {conference.category}
+          Category #{conference.categoryId}
         </span>
 
         <h3 className="line-clamp-2 text-xl font-bold text-gray-900">
@@ -40,27 +43,35 @@ const ConferenceCard = ({ conference }: ConferenceCardProps) => {
 
           <div className="flex items-center gap-2">
             <MapPin size={16} />
-            <span>{conference.location}</span>
+            <span>{conference.city}</span>
           </div>
 
           <div className="flex items-center gap-2">
             <Calendar size={16} />
-            <span>{conference.date}</span>
+            <span>{new Date(conference.startDate).toLocaleDateString("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+              })}</span>
           </div>
 
         </div>
 
         <div className="flex items-center justify-between pt-3">
+  <span
+    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+      conference.isFree
+        ? "bg-green-100 text-green-700"
+        : "bg-orange-100 text-orange-700"
+    }`}
+  >
+    {conference.isFree ? "FREE" : "PAID"}
+  </span>
 
-          <h3 className="text-lg font-bold text-blue-600">
-            IDR {conference.price.toLocaleString("id-ID")}
-          </h3>
-
-          <Link to={`/conferences/${conference.id}`}>
-            <Button>Details</Button>
-          </Link>
-
-        </div>
+  <Link to={`/conferences/${conference.id}`}>
+    <Button>Details</Button>
+  </Link>
+</div>
 
       </div>
 
