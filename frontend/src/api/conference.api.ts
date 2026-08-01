@@ -1,19 +1,24 @@
 import { api } from "./axios";
 
-export const getConferences = async (
-  page = 1,
-  limit = 9,
-  search = ""
-) => {
-  const response = await api.get("/conferences", {
-    params: {
-      page,
-      limit,
-      search,
-    },
+interface ConferenceParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  city?: string;
+  categoryId?: number;
+  isFree?: boolean;
+}
+
+export const getConferences = async (params?: ConferenceParams) => {
+  const { data } = await api.get("/conferences", {
+    params,
   });
 
-  console.log("AXIOS RESPONSE:", response);
+  return data;
+};
 
-  return response.data;
+export const getConferenceById = async (id: number) => {
+  const { data } = await api.get(`/conferences/${id}`);
+
+  return data;
 };

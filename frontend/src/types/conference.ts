@@ -8,11 +8,12 @@ export interface Conference {
   startDate: string;
   endDate: string;
   isFree: boolean;
-  status: string;
-  organizerId: number;
   categoryId: number;
-  createdAt: string;
-  updatedAt: string;
+
+  category: {
+    id: number;
+    name: string;
+  };
 }
 
 export interface ConferenceResponse {
