@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { TransactionController } from "./transaction.controller";
 import { upload } from "../../middleware/upload";
+import { authMiddleware } from "../../middleware/auth.middleware";
 
 export class TransactionRoute {
   public router: Router;
@@ -17,6 +18,7 @@ export class TransactionRoute {
   private initializeRoutes() {
     this.router.post(
       "/",
+      authMiddleware,
       this.transactionController.create.bind(this.transactionController),
     );
 

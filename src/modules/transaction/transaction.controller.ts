@@ -7,7 +7,12 @@ export class TransactionController {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await this.transactionService.create(req.body);
+      const userId = (req as any).user.id;
+
+      const result = await this.transactionService.create({
+        ...req.body,
+        userId,
+      });
 
       res.status(201).json({
         success: true,

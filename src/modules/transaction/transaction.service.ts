@@ -1,5 +1,10 @@
 import { addHours } from "date-fns";
-import { ConferenceStatus, TransactionStatus } from "@prisma/client";
+import {
+  ConferenceStatus,
+  TransactionStatus,
+  PointType,
+  DiscountType,
+} from "@prisma/client";
 
 import { TransactionRepository } from "./transaction.repository";
 import { TicketTypeRepository } from "../ticket/ticket-type.repository";
@@ -15,10 +20,8 @@ export class TransactionService {
   private ticketTypeRepository = new TicketTypeRepository();
   private conferenceRepository = new ConferenceRepository();
 
-  async create(data: CreateTransactionDTO) {
-    const { ticketTypeId, quantity } = data;
-
-    const userId = 1;
+  async create(data: CreateTransactionDTO & { userId: number }) {
+    const { ticketTypeId, quantity, userId, couponId, pointUsed } = data;
 
     const ticketType = await this.ticketTypeRepository.findById(ticketTypeId);
 
@@ -46,15 +49,76 @@ export class TransactionService {
     const expiresAt = addHours(new Date(), 2);
 
     const transaction = await prisma.$transaction(async (tx) => {
+      let discountAmount = 0;
+      let actualPointUsed = 0;
+
+      if (couponId) {
+        const coupon = await tx.coupon.findFirst({
+          where: {
+            id: couponId,
+            userId,
+            isUsed: false,
+            expiredAt: { gte: new Date() },
+          },
+        });
+
+        if (!coupon) {
+          throw new AppError("Kupon tidak valid atau sudah kadaluarsa", 400);
+        }
+
+        if (coupon.discountType === DiscountType.PERCENTAGE) {
+          discountAmount = (subtotal * coupon.discountValue) / 100;
+        } else {
+          discountAmount = coupon.discountValue;
+        }
+
+        await tx.coupon.update({
+          where: { id: coupon.id },
+          data: { isUsed: true },
+        });
+      }
+
+      const remainingPriceAfterCoupon = Math.max(0, subtotal - discountAmount);
+
+      if (pointUsed && pointUsed > 0) {
+        const userPoints = await tx.pointHistory.aggregate({
+          where: {
+            userId,
+            expiredAt: { gte: new Date() },
+          },
+          _sum: { point: true },
+        });
+
+        const totalAvailablePoints = userPoints._sum.point || 0;
+
+        if (pointUsed > totalAvailablePoints) {
+          throw new AppError("Jumlah poin kamu tidak mencukupi", 400);
+        }
+
+        actualPointUsed = Math.min(pointUsed, remainingPriceAfterCoupon);
+
+        await tx.pointHistory.create({
+          data: {
+            userId,
+            point: -actualPointUsed,
+            type: PointType.REDEEM,
+            description: `Penggunaan poin pada transaksi tiket`,
+            expiredAt: new Date(),
+          },
+        });
+      }
+
+      const totalPrice = Math.max(0, remainingPriceAfterCoupon - actualPointUsed);
+
       const newTransaction = await tx.transaction.create({
         data: {
           quantity,
           subtotal,
-          discount: 0,
-          pointUsed: 0,
-          totalPrice: subtotal,
+          discount: discountAmount,
+          pointUsed: actualPointUsed,
+          totalPrice,
           expiresAt,
-          status: "WAITING_PAYMENT",
+          status: TransactionStatus.WAITING_PAYMENT,
 
           user: {
             connect: {
@@ -73,15 +137,24 @@ export class TransactionService {
               id: ticketType.id,
             },
           },
+
+          ...(couponId && {
+            coupon: {
+              connect: { id: couponId },
+            },
+          }),
         },
       });
+
 
       await tx.ticketType.update({
         where: {
           id: ticketType.id,
         },
         data: {
-          availableSeat: ticketType.availableSeat - quantity,
+          availableSeat: {
+            decrement: quantity,
+          },
         },
       });
 
