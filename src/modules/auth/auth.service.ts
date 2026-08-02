@@ -6,7 +6,6 @@ import { AppError } from "../../errors/AppError";
 
 export class AuthService {
   static async register(dto: any) {
-    console.log("=== DTO RECEIVED ===", dto);
     const { fullName, email, phoneNumber, password, role, referredByCode } = dto;
 
     const existingUser = await prisma.user.findUnique({
@@ -22,7 +21,6 @@ export class AuthService {
       referrer = await prisma.user.findUnique({
         where: { referralCode: referredByCode },
       });
-      console.log("=== REFERRER FOUND ===", referrer);
 
       if (!referrer) {
         throw new AppError("Kode referral tidak ditemukan", 400);

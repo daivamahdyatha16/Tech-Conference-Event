@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from "express";
-import { ZodError } from "zod";
 import { AuthService } from "./auth.service";
 import { RegisterSchema, LoginSchema } from "./auth.validation";
 import { AppError } from "../../errors/AppError";
@@ -17,10 +16,6 @@ export class AuthController {
         data: newUser,
       });
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessage = error.errors.map((e) => e.message).join(", ");
-        return next(new AppError(`Validasi gagal: ${errorMessage}`, 400));
-      }
       next(error);
     }
   }
@@ -36,10 +31,6 @@ export class AuthController {
         data: result,
       });
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessage = error.errors.map((e) => e.message).join(", ");
-        return next(new AppError(`Validasi gagal: ${errorMessage}`, 400));
-      }
       next(error);
     }
   }

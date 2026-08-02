@@ -1,23 +1,26 @@
-import { NextFunction, Request, Response } from "express";
-import { AppError } from "../errors/AppError";
+import { Request, Response, NextFunction } from "express";
+import { ZodError } from "zod";
 
 export const errorMiddleware = (
-  error: Error,
+  err: any,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({
+  if (err instanceof ZodError) {
+    return res.status(400).json({
       success: false,
-      message: error.message,
+      message: "Validation Error",
+      errors: err.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      })),
     });
   }
 
-  console.error(error);
-
+  console.error("Unhandled Error:", err);
   return res.status(500).json({
     success: false,
-    message: "Internal Server Error",
+    message: err.message || "Internal Server Error",
   });
 };
