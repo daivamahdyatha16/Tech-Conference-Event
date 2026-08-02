@@ -1,112 +1,584 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { MapPin, CalendarDays, Building2, Ticket } from "lucide-react";
+import {
+  MapPin,
+  CalendarDays,
+  Building2,
+  Ticket,
+  Star,
+  Minus,
+  Plus,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 
 import { useConferenceDetail } from "../../hooks/useConferenceDetail";
+import { useTicketTypes } from "../../hooks/useTicketTypes";
+import { useReviews } from "../../hooks/useReviews";
+import { createTransaction } from "../../api/transaction.api";
+import { createReview } from "../../api/review.api";
+import { formatIDR } from "../../utils/currency";
+import Button from "../../components/ui/Button";
+import Skeleton from "../../components/ui/Skeleton";
+import ImagePlaceholder from "../../components/ui/ImagePlaceholder";
+import ConferenceStatusBadge from "../../components/conference/ConferenceStatusBadge";
+
+// Generic fallback shown when a conference has no uploaded thumbnail.
+import conferencePlaceholderImage from "../../assets/images/conference-placeholder.webp";
+
+const StarRating = ({
+  value,
+  size = 16,
+}: {
+  value: number;
+  size?: number;
+}) => (
+  <div className="flex gap-0.5">
+    {[1, 2, 3, 4, 5].map((star) => (
+      <Star
+        key={star}
+        size={size}
+        className={
+          star <= value ? "fill-amber-400 text-amber-400" : "text-gray-300"
+        }
+      />
+    ))}
+  </div>
+);
 
 const ConferenceDetail = () => {
   const { id } = useParams();
+  const conferenceId = Number(id);
 
-  const { conference, loading, error } = useConferenceDetail(Number(id));
+  const { conference, loading, error } = useConferenceDetail(conferenceId);
+  const {
+    ticketTypes,
+    loading: ticketTypesLoading,
+    error: ticketTypesError,
+    refetch: refetchTicketTypes,
+  } = useTicketTypes(conferenceId);
+
+  const {
+    reviews,
+    loading: reviewsLoading,
+    error: reviewsError,
+    refetch: refetchReviews,
+  } = useReviews(conferenceId);
+
+  const [selectedTicketTypeId, setSelectedTicketTypeId] = useState<
+    number | null
+  >(null);
+  const [quantity, setQuantity] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const averageRating = reviews.length
+    ? reviews.reduce((sum, review) => sum + review.rating, 0) /
+      reviews.length
+    : null;
+
+  const selectedTicketType = ticketTypes.find(
+    (ticketType) => ticketType.id === selectedTicketTypeId
+  );
+
+  const totalPayment = selectedTicketType
+    ? selectedTicketType.price * quantity
+    : 0;
+
+  const handleSelectTicketType = (ticketTypeId: number) => {
+    setSelectedTicketTypeId(ticketTypeId);
+    setQuantity(1);
+  };
+
+  const clampQuantity = (value: number, max: number) =>
+    Math.max(1, Math.min(max, value));
+
+  const handleQuantityChange = (value: number) => {
+    if (!selectedTicketType) return;
+    setQuantity(clampQuantity(value, selectedTicketType.availableSeat));
+  };
+
+  const handleBuyTicket = async () => {
+    if (!selectedTicketType) {
+      alert("Pilih jenis tiket terlebih dahulu.");
+      return;
+    }
+
+    if (quantity < 1 || quantity > selectedTicketType.availableSeat) {
+      alert("Jumlah tiket tidak valid.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      const response = await createTransaction({
+        ticketTypeId: selectedTicketType.id,
+        quantity,
+      });
+
+      if (conference?.isFree) {
+        alert("Tiket berhasil didapatkan! Transaksi kamu sudah tercatat.");
+      } else {
+        const expiresAt = new Date(response.data.expiresAt).toLocaleString(
+          "id-ID"
+        );
+
+        alert(
+          `Transaksi berhasil dibuat. Total pembayaran: ${formatIDR(
+            response.data.totalPrice
+          )}. Selesaikan pembayaran sebelum ${expiresAt}.`
+        );
+      }
+
+      setSelectedTicketTypeId(null);
+      setQuantity(1);
+      refetchTicketTypes();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal membuat transaksi.";
+
+      alert(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (rating < 1) {
+      alert("Pilih rating terlebih dahulu.");
+      return;
+    }
+
+    if (!comment.trim()) {
+      alert("Komentar tidak boleh kosong.");
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+
+      await createReview({
+        conferenceId,
+        rating,
+        comment: comment.trim(),
+      });
+
+      setRating(0);
+      setComment("");
+      refetchReviews();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal mengirim review.";
+
+      alert(message);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="py-20 text-center">
-        Loading...
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        <Skeleton className="mb-8 h-[320px] w-full rounded-3xl sm:h-[420px]" />
+
+        <div className="grid gap-10 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            <Skeleton className="h-6 w-32 rounded-full" />
+            <Skeleton className="h-10 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+          </div>
+
+          <Skeleton className="h-80 w-full rounded-2xl" />
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !conference) {
     return (
-      <div className="py-20 text-center text-red-500">
-        {error}
-      </div>
-    );
-  }
-
-  if (!conference) {
-    return (
-      <div className="py-20 text-center">
-        Conference not found
+      <div className="mx-auto flex max-w-xl flex-col items-center px-6 py-24 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+          <AlertCircle size={28} className="text-red-500" />
+        </div>
+        <h2 className="mt-5 text-xl font-bold text-slate-900">
+          {error ? "Something went wrong" : "Conference not found"}
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          {error ||
+            "The conference you're looking for doesn't exist or has been removed."}
+        </p>
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
-      <img
-        src={
-          conference.thumbnail ??
-          "https://placehold.co/1200x600?text=No+Image"
-        }
-        alt={conference.title}
-        className="mb-8 h-[420px] w-full rounded-2xl object-cover"
-      />
-
-      <span className="inline-block rounded-full bg-blue-100 px-4 py-1 text-sm font-medium text-blue-700">
-        {conference.category.name}
-      </span>
-
-      <h1 className="mt-4 text-4xl font-bold">
-        {conference.title}
-      </h1>
-
-      <p className="mt-4 leading-8 text-gray-600">
-        {conference.description}
-      </p>
-
-      <div className="mt-10 grid gap-6 rounded-2xl border p-6 md:grid-cols-2">
-        <div className="flex items-center gap-3">
-          <MapPin className="text-blue-600" size={22} />
-          <div>
-            <p className="text-sm text-gray-500">City</p>
-            <p className="font-semibold">{conference.city}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Building2 className="text-blue-600" size={22} />
-          <div>
-            <p className="text-sm text-gray-500">Venue</p>
-            <p className="font-semibold">{conference.venue}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <CalendarDays className="text-blue-600" size={22} />
-          <div>
-            <p className="text-sm text-gray-500">Event Date</p>
-            <p className="font-semibold">
-              {new Date(conference.startDate).toLocaleDateString("id-ID", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Ticket className="text-blue-600" size={22} />
-          <div>
-            <p className="text-sm text-gray-500">Price</p>
-            <p className="font-semibold">
-              {conference.isFree ? (
-                <span className="text-green-600">FREE</span>
-              ) : (
-                <span className="text-orange-600">Paid Event</span>
-              )}
-            </p>
-          </div>
-        </div>
+      <div className="mb-8 overflow-hidden rounded-3xl shadow-xl shadow-slate-900/10">
+        <ImagePlaceholder
+          src={conference.thumbnail ?? conferencePlaceholderImage}
+          alt={conference.title}
+          className="h-[320px] w-full sm:h-[420px]"
+        />
       </div>
 
-      <div className="mt-10">
-        <button
-          className="w-full rounded-xl bg-blue-600 py-4 font-semibold text-white transition hover:bg-blue-700 md:w-auto md:px-10"
-        >
-          Buy Ticket
-        </button>
+      <div className="grid gap-10 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-block rounded-full bg-blue-50 px-4 py-1 text-sm font-semibold text-blue-700">
+              {conference.category.name}
+            </span>
+
+            <ConferenceStatusBadge
+              startDate={conference.startDate}
+              endDate={conference.endDate}
+            />
+          </div>
+
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+            {conference.title}
+          </h1>
+
+          <p className="mt-4 leading-relaxed text-slate-600">
+            {conference.description}
+          </p>
+
+          <div className="mt-8 grid gap-5 rounded-2xl border border-gray-100 bg-gray-50/60 p-6 sm:grid-cols-2">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                <MapPin size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  City
+                </p>
+                <p className="font-semibold text-slate-900">
+                  {conference.city}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                <Building2 size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Venue
+                </p>
+                <p className="font-semibold text-slate-900">
+                  {conference.venue}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                <CalendarDays size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Event Date
+                </p>
+                <p className="font-semibold text-slate-900">
+                  {new Date(conference.startDate).toLocaleDateString(
+                    "id-ID",
+                    { day: "numeric", month: "long", year: "numeric" }
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                <Ticket size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Price
+                </p>
+                <p className="font-semibold">
+                  {conference.isFree ? (
+                    <span className="text-emerald-600">Free</span>
+                  ) : (
+                    <span className="text-amber-600">Paid Event</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Reviews & Ratings */}
+          <div className="mt-12">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                Reviews &amp; Ratings
+              </h2>
+
+              {averageRating !== null && (
+                <div className="flex items-center gap-2">
+                  <StarRating value={Math.round(averageRating)} />
+                  <span className="text-sm text-slate-500">
+                    {averageRating.toFixed(1)} ({reviews.length} review
+                    {reviews.length > 1 ? "s" : ""})
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <form
+              onSubmit={handleSubmitReview}
+              className="mt-6 space-y-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-5"
+            >
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-700">
+                  Your Rating
+                </p>
+                <div
+                  className="flex gap-1"
+                  onMouseLeave={() => setHoveredRating(0)}
+                >
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      onMouseEnter={() => setHoveredRating(star)}
+                      aria-label={`Rate ${star} star`}
+                      className="transition-transform duration-150 hover:scale-110"
+                    >
+                      <Star
+                        size={28}
+                        className={
+                          star <= (hoveredRating || rating)
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-gray-300"
+                        }
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="comment"
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
+                >
+                  Comment
+                </label>
+                <textarea
+                  id="comment"
+                  rows={3}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Share your experience about this conference..."
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none transition-all duration-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                />
+              </div>
+
+              <Button type="submit" disabled={submittingReview}>
+                {submittingReview ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Review"
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6">
+              {reviewsLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 2 }).map((_, index) => (
+                    <div key={index} className="space-y-2 py-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : reviewsError ? (
+                <p className="py-10 text-center text-sm text-red-500">
+                  {reviewsError}
+                </p>
+              ) : reviews.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 py-12 text-center">
+                  <p className="text-sm text-slate-500">
+                    No reviews yet. Be the first to review this conference.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="py-5">
+                      <div className="flex items-center justify-between">
+                        <StarRating value={review.rating} />
+                        <span className="text-xs text-slate-400">
+                          {new Date(review.createdAt).toLocaleDateString(
+                            "id-ID",
+                            { day: "numeric", month: "long", year: "numeric" }
+                          )}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">
+                        {review.user?.fullName ?? "Anonymous"}
+                      </p>
+                      <p className="mt-1 leading-relaxed text-slate-600">
+                        {review.comment}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Ticket purchase sidebar */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-28 rounded-2xl border border-gray-100 bg-white p-6 shadow-lg shadow-slate-900/5">
+            <h2 className="text-lg font-bold tracking-tight text-slate-900">
+              Tickets
+            </h2>
+
+            {ticketTypesLoading ? (
+              <div className="mt-5 space-y-3">
+                <Skeleton className="h-20 w-full rounded-xl" />
+                <Skeleton className="h-20 w-full rounded-xl" />
+              </div>
+            ) : ticketTypesError ? (
+              <p className="mt-5 text-sm text-red-500">{ticketTypesError}</p>
+            ) : ticketTypes.length === 0 ? (
+              <p className="mt-5 text-sm text-slate-500">
+                No tickets available for this conference yet.
+              </p>
+            ) : (
+              <>
+                <div className="mt-5 space-y-3">
+                  {ticketTypes.map((ticketType) => {
+                    const soldOut = ticketType.availableSeat <= 0;
+                    const isSelected = ticketType.id === selectedTicketTypeId;
+
+                    return (
+                      <label
+                        key={ticketType.id}
+                        className={`flex cursor-pointer items-start justify-between gap-3 rounded-xl border p-4 transition-all duration-200 ${
+                          isSelected
+                            ? "border-blue-600 bg-blue-50/60 ring-1 ring-blue-600"
+                            : "border-gray-200 hover:border-gray-300"
+                        } ${soldOut ? "cursor-not-allowed opacity-50" : ""}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="radio"
+                            name="ticketType"
+                            checked={isSelected}
+                            disabled={soldOut}
+                            onChange={() =>
+                              handleSelectTicketType(ticketType.id)
+                            }
+                            className="mt-1 h-4 w-4 accent-blue-600"
+                          />
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {ticketType.name}
+                            </p>
+                            {ticketType.description && (
+                              <p className="mt-0.5 text-xs text-slate-500">
+                                {ticketType.description}
+                              </p>
+                            )}
+                            <p className="mt-1 text-xs font-medium text-slate-400">
+                              {soldOut
+                                ? "Sold out"
+                                : `${ticketType.availableSeat} seats left`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <p className="whitespace-nowrap text-sm font-bold text-blue-600">
+                          {ticketType.price === 0
+                            ? "Free"
+                            : formatIDR(ticketType.price)}
+                        </p>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {selectedTicketType && (
+                  <div className="mt-5 space-y-4 rounded-xl bg-gray-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">
+                        Quantity
+                      </span>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleQuantityChange(quantity - 1)}
+                          disabled={quantity <= 1}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-slate-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <Minus size={14} />
+                        </button>
+
+                        <span className="w-6 text-center text-sm font-semibold text-slate-900">
+                          {quantity}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => handleQuantityChange(quantity + 1)}
+                          disabled={quantity >= selectedTicketType.availableSeat}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-slate-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {!conference.isFree && (
+                      <div className="flex items-center justify-between border-t border-gray-200 pt-3">
+                        <span className="text-sm text-slate-500">
+                          Total Payment
+                        </span>
+                        <span className="text-lg font-bold text-slate-900">
+                          {formatIDR(totalPayment)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            <Button
+              onClick={handleBuyTicket}
+              disabled={!selectedTicketType || submitting}
+              className="mt-6 w-full"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Buy Ticket"
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -12,14 +12,18 @@ interface Meta {
 export const useConference = (
   page = 1,
   search = "",
-  categoryId?: number,  
+  categoryId?: number,
   isFree?: boolean,
+  city?: string,
+  sortBy?: "startDate" | "createdAt",
+  sortOrder?: "asc" | "desc",
+  limit = 9,
 ) => {
   const [conferences, setConferences] = useState<Conference[]>([]);
 
   const [meta, setMeta] = useState<Meta>({
     page: 1,
-    limit: 9,
+    limit,
     totalData: 0,
     totalPage: 1,
   });
@@ -35,10 +39,13 @@ export const useConference = (
 
         const response = await getConferences({
           page,
-          limit: 9,
+          limit,
           search,
           categoryId,
           isFree,
+          city,
+          sortBy,
+          sortOrder,
         });
 
         setConferences(response.data);
@@ -52,7 +59,7 @@ export const useConference = (
     };
 
     fetchConferences();
-  }, [page, search, categoryId, isFree]);
+  }, [page, search, categoryId, isFree, city, sortBy, sortOrder, limit]);
 
   return {
     conferences,

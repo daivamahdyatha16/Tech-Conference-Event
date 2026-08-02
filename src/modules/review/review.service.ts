@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { ReviewRepository } from "./review.repository";
+import { CreateReviewDTO } from "./review.interface";
 
 export class ReviewService {
   private reviewRepository: ReviewRepository;
@@ -8,14 +9,27 @@ export class ReviewService {
     this.reviewRepository = new ReviewRepository();
   }
 
-  async create(data: Prisma.ReviewCreateInput) {
-    return this.reviewRepository.create(data);
+  async create(dto: CreateReviewDTO, userId: number) {
+    return this.reviewRepository.create({
+      rating: dto.rating,
+      comment: dto.comment,
+      user: {
+        connect: {
+          id: userId,
+        },
+      },
+      conference: {
+        connect: {
+          id: dto.conferenceId,
+        },
+      },
+    });
   }
 
-  async findAll(page: number, limit: number) {
+  async findAll(page: number, limit: number, conferenceId?: number) {
     const skip = (page - 1) * limit;
 
-    return this.reviewRepository.findMany(skip, limit);
+    return this.reviewRepository.findMany(skip, limit, conferenceId);
   }
 
   async findById(id: number) {

@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { ReviewService } from "./review.service";
+import { createReviewSchema } from "./review.validation";
 
 export class ReviewController {
   private reviewService: ReviewService;
@@ -10,7 +11,12 @@ export class ReviewController {
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.reviewService.create(req.body);
+      // sementara sebelum JWT
+      const userId = 1;
+
+      const dto = createReviewSchema.parse(req.body);
+
+      const result = await this.reviewService.create(dto, userId);
 
       res.status(201).json({
         message: "Review berhasil dibuat",
@@ -25,8 +31,15 @@ export class ReviewController {
     try {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
+      const conferenceId = req.query.conferenceId
+        ? Number(req.query.conferenceId)
+        : undefined;
 
-      const result = await this.reviewService.findAll(page, limit);
+      const result = await this.reviewService.findAll(
+        page,
+        limit,
+        conferenceId
+      );
 
       res.status(200).json({
         message: "Daftar review",

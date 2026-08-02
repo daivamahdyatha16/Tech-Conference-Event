@@ -6,7 +6,7 @@ const Input = ({
 }: InputHTMLAttributes<HTMLInputElement>) => {
   return (
     <input
-      className={`w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 ${className}`}
+      className={`w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 shadow-sm outline-none transition-all duration-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 ${className}`}
       {...props}
     />
   );

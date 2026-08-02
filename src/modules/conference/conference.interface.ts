@@ -19,4 +19,6 @@ export interface ConferenceQuery {
     isFree?: boolean;
     page?: number;
     limit?: number;
+    sortBy?: "startDate" | "createdAt";
+    sortOrder?: "asc" | "desc";
 }

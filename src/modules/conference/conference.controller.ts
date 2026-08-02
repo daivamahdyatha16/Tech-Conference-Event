@@ -28,6 +28,16 @@ export class ConferenceController {
 
   async findAll(req: Request, res: Response, next: NextFunction) {
     try {
+      const sortBy =
+        req.query.sortBy === "startDate" || req.query.sortBy === "createdAt"
+          ? req.query.sortBy
+          : undefined;
+
+      const sortOrder =
+        req.query.sortOrder === "asc" || req.query.sortOrder === "desc"
+          ? req.query.sortOrder
+          : undefined;
+
       const query: ConferenceQuery = {
         search: req.query.search as string,
         city: req.query.city as string,
@@ -37,6 +47,8 @@ export class ConferenceController {
         isFree: req.query.isFree ? req.query.isFree === "true" : undefined,
         page: req.query.page ? Number(req.query.page) : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
+        sortBy,
+        sortOrder,
       };
       const result = await this.conferenceService.findAll(query);
 

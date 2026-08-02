@@ -4,17 +4,17 @@ import SearchBar from "./SearchBar";
 const HeroContent = () => {
   return (
     <div className="max-w-2xl">
-      <span className="inline-flex rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+      <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-700">
         🚀 Indonesia's Largest Tech Conference Marketplace
       </span>
 
-      <h1 className="mt-6 text-5xl lg:text-7xl font-extrabold leading-tight tracking-tight text-slate-900">
+      <h1 className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-900 lg:text-7xl">
         Discover Your
         <br />
         <span className="text-blue-600">Next Tech Conference</span>
       </h1>
 
-      <p className="mt-6 text-lg leading-8 text-slate-500">
+      <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-500">
         Find conferences, workshops, hackathons, networking events and tech
         communities across Indonesia.
       </p>
@@ -24,14 +24,14 @@ const HeroContent = () => {
       </div>
 
       <div className="mt-10">
-        <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
+        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-400">
           Popular Topics
         </p>
 
         <CategoryPills />
       </div>
 
-      <div className="mt-10 flex flex-wrap gap-6 text-sm text-slate-500">
+      <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-slate-400">
         <span>Dicoding</span>
         <span>GDG</span>
         <span>AWS User Group</span>

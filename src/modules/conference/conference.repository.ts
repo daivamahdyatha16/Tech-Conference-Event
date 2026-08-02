@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { ConferenceStatus, Prisma } from "@prisma/client";
 import { prisma } from "../../configs/prisma";
 import { ConferenceQuery } from "./conference.interface";
 
@@ -21,7 +21,10 @@ export class ConferenceRepository {
   }
 
   async findAll(query: ConferenceQuery & { skip: number }) {
-    const where: Prisma.ConferenceWhereInput = {};
+    // GET /conferences is a public endpoint — only PUBLISHED conferences may appear.
+    const where: Prisma.ConferenceWhereInput = {
+      status: ConferenceStatus.PUBLISHED,
+    };
 
     if (query.search) {
       where.OR = [
@@ -67,7 +70,7 @@ export class ConferenceRepository {
         skip: query.skip,
         take: query.limit,
         orderBy: {
-          startDate: "desc",
+          [query.sortBy ?? "startDate"]: query.sortOrder ?? "asc",
         },
         include: {
           category: true,

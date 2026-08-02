@@ -19,7 +19,7 @@ export class ConferenceService {
       startDate: dto.startDate,
       endDate: dto.endDate,
       isFree: dto.isFree,
-      status: ConferenceStatus.DRAFT,
+      status: dto.isFree ? ConferenceStatus.PUBLISHED : ConferenceStatus.DRAFT,
 
       organizer: {
         connect: {
@@ -49,14 +49,14 @@ export class ConferenceService {
       limit,
     });
     return {
-      data : result.data,
+      data: result.data,
       meta: {
         page,
         limit,
         totalData: result.total,
         totalPage: Math.ceil(result.total / limit),
       },
-    }
+    };
   }
 
   async findById(id: number) {

@@ -8,13 +8,25 @@ export class ReviewRepository {
     });
   }
 
-  async findMany(skip: number, take: number) {
+  async findMany(skip: number, take: number, conferenceId?: number) {
+    const where: Prisma.ReviewWhereInput = conferenceId
+      ? { conferenceId }
+      : {};
+
     return prisma.review.findMany({
+      where,
       skip,
       take,
+      orderBy: {
+        createdAt: "desc",
+      },
       include: {
-        user: true,
-        conference: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
       },
     });
   }
@@ -25,7 +37,12 @@ export class ReviewRepository {
         id,
       },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
         conference: true,
       },
     });

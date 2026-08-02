@@ -50,12 +50,8 @@ export class TransactionController {
   try {
     const transactionId = Number(req.params.id);
 
-    // sementara sebelum JWT
-    const organizerId = 2;
-
     const result = await this.transactionService.approveTransaction(
       transactionId,
-      organizerId,
     );
 
     res.status(200).json({

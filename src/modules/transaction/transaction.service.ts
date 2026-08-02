@@ -113,7 +113,7 @@ export class TransactionService {
     });
   }
 
-  async approveTransaction(transactionId: number, approvedBy: number) {
+  async approveTransaction(transactionId: number) {
     const transaction =
       await this.transactionRepository.findById(transactionId);
 
