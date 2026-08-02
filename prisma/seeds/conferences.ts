@@ -1,62 +1,81 @@
-import { ConferenceStatus } from "@prisma/client";
-import { PrismaClient } from "@prisma/client";
+import { ConferenceStatus, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export async function seedConferences() {
+  console.log("🌱 Seeding conferences...");
+
+  // 1. Ambil data organizer dan category yang beneran ada di DB
+  const organizers = await prisma.user.findMany({
+    where: { role: "ORGANIZER" },
+    select: { id: true },
+  });
+
+  const categories = await prisma.category.findMany({
+    select: { id: true },
+  });
+
+  if (organizers.length === 0 || categories.length === 0) {
+    console.log("⚠️ Organizer atau Category belum ada di DB. Skipping conference seed.");
+    return;
+  }
+
+  // Petakan ID agar tidak hardcode
+  const org1 = organizers[0]?.id || 1;
+  const org2 = organizers[1]?.id || org1;
+  const org3 = organizers[2]?.id || org1;
+
+  // Fungsi pembantu agar categoryId selalu terambil dari ID yang valid
+  const getCatId = (index: number) => categories[index % categories.length].id;
+
   const conferences = [
     {
       title: "Indonesia AI Summit 2026",
-      description:
-        "Konferensi nasional mengenai penerapan Artificial Intelligence di berbagai sektor industri.",
+      description: "Konferensi nasional mengenai penerapan Artificial Intelligence di berbagai sektor industri.",
       city: "Jakarta",
       venue: "Jakarta Convention Center",
       startDate: new Date("2026-09-10T09:00:00"),
       endDate: new Date("2026-09-10T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 1,
+      organizerId: org1,
+      categoryId: getCatId(0),
     },
     {
       title: "Cloud Indonesia Expo",
-      description:
-        "Membahas implementasi cloud computing untuk perusahaan modern.",
+      description: "Membahas implementasi cloud computing untuk perusahaan modern.",
       city: "Jakarta",
       venue: "Balai Kartini",
       startDate: new Date("2026-10-08T09:00:00"),
       endDate: new Date("2026-10-08T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 5,
+      organizerId: org2,
+      categoryId: getCatId(4),
     },
     {
       title: "Indonesia DevOps Conference",
-      description:
-        "Best practice DevOps, CI/CD, automation, dan observability.",
+      description: "Best practice DevOps, CI/CD, automation, dan observability.",
       city: "Jakarta",
       venue: "The Kasablanka Hall",
       startDate: new Date("2026-11-15T09:00:00"),
       endDate: new Date("2026-11-15T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 9,
+      organizerId: org3,
+      categoryId: getCatId(8),
     },
-
     {
       title: "Bandung Software Engineering Conference",
-      description:
-        "Software architecture, clean code, testing, dan scalable systems.",
+      description: "Software architecture, clean code, testing, dan scalable systems.",
       city: "Bandung",
       venue: "Sasana Budaya Ganesha",
       startDate: new Date("2026-09-18T09:00:00"),
       endDate: new Date("2026-09-18T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 2,
+      organizerId: org2,
+      categoryId: getCatId(1),
     },
     {
       title: "Bandung Web Tech Summit",
@@ -67,8 +86,8 @@ export async function seedConferences() {
       endDate: new Date("2026-10-20T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 8,
+      organizerId: org1,
+      categoryId: getCatId(7),
     },
     {
       title: "Bandung Machine Learning Forum",
@@ -79,22 +98,20 @@ export async function seedConferences() {
       endDate: new Date("2026-11-05T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 6,
+      organizerId: org3,
+      categoryId: getCatId(5),
     },
-
     {
       title: "Surabaya Cyber Security Forum",
-      description:
-        "Keamanan siber, penetration testing, dan incident response.",
+      description: "Keamanan siber, penetration testing, dan incident response.",
       city: "Surabaya",
       venue: "Grand City Convention Hall",
       startDate: new Date("2026-09-24T09:00:00"),
       endDate: new Date("2026-09-24T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 3,
+      organizerId: org3,
+      categoryId: getCatId(2),
     },
     {
       title: "Surabaya Cloud Native Day",
@@ -105,8 +122,8 @@ export async function seedConferences() {
       endDate: new Date("2026-10-27T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 5,
+      organizerId: org2,
+      categoryId: getCatId(4),
     },
     {
       title: "East Java Mobile Developer Summit",
@@ -117,35 +134,32 @@ export async function seedConferences() {
       endDate: new Date("2026-11-18T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 7,
+      organizerId: org1,
+      categoryId: getCatId(6),
     },
-
     {
       title: "Padang Digital Innovation Summit",
-      description:
-        "Forum transformasi digital dan inovasi teknologi di Sumatera Barat.",
+      description: "Forum transformasi digital dan inovasi teknologi di Sumatera Barat.",
       city: "Padang",
       venue: "Mercure Padang",
       startDate: new Date("2026-10-03T09:00:00"),
       endDate: new Date("2026-10-03T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 4,
+      organizerId: org1,
+      categoryId: getCatId(3),
     },
     {
       title: "West Sumatra AI Conference",
-      description:
-        "Pemanfaatan AI untuk sektor pendidikan, kesehatan, dan UMKM.",
+      description: "Pemanfaatan AI untuk sektor pendidikan, kesehatan, dan UMKM.",
       city: "Padang",
       venue: "Universitas Andalas Convention Hall",
       startDate: new Date("2026-11-07T09:00:00"),
       endDate: new Date("2026-11-07T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 1,
+      organizerId: org2,
+      categoryId: getCatId(0),
     },
     {
       title: "Sumatra Cyber Security Forum",
@@ -156,10 +170,9 @@ export async function seedConferences() {
       endDate: new Date("2026-12-03T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 3,
+      organizerId: org3,
+      categoryId: getCatId(2),
     },
-
     {
       title: "Yogyakarta Data Science Summit",
       description: "Data analytics, visualization, dan business intelligence.",
@@ -169,21 +182,20 @@ export async function seedConferences() {
       endDate: new Date("2026-10-10T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 4,
+      organizerId: org2,
+      categoryId: getCatId(3),
     },
     {
       title: "Jogja Developer Meetup",
-      description:
-        "Komunitas developer berbagi pengalaman dan teknologi terbaru.",
+      description: "Komunitas developer berbagi pengalaman dan teknologi terbaru.",
       city: "Yogyakarta",
       venue: "Universitas Gadjah Mada",
       startDate: new Date("2026-11-14T09:00:00"),
       endDate: new Date("2026-11-14T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 8,
+      organizerId: org1,
+      categoryId: getCatId(7),
     },
     {
       title: "Yogyakarta Blockchain Forum",
@@ -194,34 +206,32 @@ export async function seedConferences() {
       endDate: new Date("2026-12-08T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 10,
+      organizerId: org3,
+      categoryId: getCatId(9),
     },
     {
       title: "Semarang Tech Innovation Summit",
-      description:
-        "Konferensi mengenai inovasi teknologi untuk sektor bisnis dan pemerintahan.",
+      description: "Konferensi mengenai inovasi teknologi untuk sektor bisnis dan pemerintahan.",
       city: "Semarang",
       venue: "MG Setos Hotel",
       startDate: new Date("2026-09-22T09:00:00"),
       endDate: new Date("2026-09-22T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 2,
+      organizerId: org1,
+      categoryId: getCatId(1),
     },
     {
       title: "Java Cloud Summit",
-      description:
-        "Cloud infrastructure, serverless architecture, dan enterprise cloud.",
+      description: "Cloud infrastructure, serverless architecture, dan enterprise cloud.",
       city: "Semarang",
       venue: "Gumaya Tower Hotel",
       startDate: new Date("2026-10-25T09:00:00"),
       endDate: new Date("2026-10-25T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 5,
+      organizerId: org2,
+      categoryId: getCatId(4),
     },
     {
       title: "Semarang DevOps Meetup",
@@ -232,10 +242,9 @@ export async function seedConferences() {
       endDate: new Date("2026-11-28T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 9,
+      organizerId: org3,
+      categoryId: getCatId(8),
     },
-
     {
       title: "North Sumatra AI Forum",
       description: "Artificial Intelligence untuk industri dan layanan publik.",
@@ -245,8 +254,8 @@ export async function seedConferences() {
       endDate: new Date("2026-09-30T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 1,
+      organizerId: org2,
+      categoryId: getCatId(0),
     },
     {
       title: "Medan Software Engineering Day",
@@ -257,8 +266,8 @@ export async function seedConferences() {
       endDate: new Date("2026-11-12T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 2,
+      organizerId: org1,
+      categoryId: getCatId(1),
     },
     {
       title: "Sumatra Data Analytics Summit",
@@ -269,10 +278,9 @@ export async function seedConferences() {
       endDate: new Date("2026-12-10T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 4,
+      organizerId: org3,
+      categoryId: getCatId(3),
     },
-
     {
       title: "Eastern Indonesia Tech Conference",
       description: "Konferensi teknologi terbesar di kawasan Indonesia Timur.",
@@ -282,8 +290,8 @@ export async function seedConferences() {
       endDate: new Date("2026-10-07T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 8,
+      organizerId: org3,
+      categoryId: getCatId(7),
     },
     {
       title: "Makassar Cyber Defense Summit",
@@ -294,8 +302,8 @@ export async function seedConferences() {
       endDate: new Date("2026-11-20T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 3,
+      organizerId: org2,
+      categoryId: getCatId(2),
     },
     {
       title: "Sulawesi Mobile Developer Conference",
@@ -306,10 +314,9 @@ export async function seedConferences() {
       endDate: new Date("2026-12-15T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 7,
+      organizerId: org1,
+      categoryId: getCatId(6),
     },
-
     {
       title: "Bali DevFest",
       description: "Festival teknologi untuk developer dan startup Indonesia.",
@@ -319,8 +326,8 @@ export async function seedConferences() {
       endDate: new Date("2026-10-15T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 8,
+      organizerId: org1,
+      categoryId: getCatId(7),
     },
     {
       title: "Bali Machine Learning Summit",
@@ -331,8 +338,8 @@ export async function seedConferences() {
       endDate: new Date("2026-11-22T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 6,
+      organizerId: org3,
+      categoryId: getCatId(5),
     },
     {
       title: "Bali Blockchain Conference",
@@ -343,10 +350,9 @@ export async function seedConferences() {
       endDate: new Date("2026-12-18T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 10,
+      organizerId: org2,
+      categoryId: getCatId(9),
     },
-
     {
       title: "Batam Digital Economy Summit",
       description: "Digital economy, fintech, dan transformasi industri.",
@@ -356,8 +362,8 @@ export async function seedConferences() {
       endDate: new Date("2026-10-28T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 2,
-      categoryId: 4,
+      organizerId: org2,
+      categoryId: getCatId(3),
     },
     {
       title: "Batam Cloud Infrastructure Day",
@@ -368,8 +374,8 @@ export async function seedConferences() {
       endDate: new Date("2026-12-05T17:00:00"),
       isFree: false,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 1,
-      categoryId: 5,
+      organizerId: org1,
+      categoryId: getCatId(4),
     },
     {
       title: "Batam Software Developer Meetup",
@@ -380,10 +386,11 @@ export async function seedConferences() {
       endDate: new Date("2026-12-22T17:00:00"),
       isFree: true,
       status: ConferenceStatus.PUBLISHED,
-      organizerId: 3,
-      categoryId: 2,
+      organizerId: org3,
+      categoryId: getCatId(1),
     },
   ];
+
   await prisma.conference.createMany({
     data: conferences,
     skipDuplicates: true,
