@@ -27,6 +27,7 @@ export class TransactionController {
   async uploadPaymentProof(req: Request, res: Response, next: NextFunction) {
     try {
       const transactionId = Number(req.params.id);
+      const userId = (req as any).user.id;
 
       if (!req.file) {
         throw new AppError("Bukti pembayaran wajib diupload", 400);
@@ -35,6 +36,7 @@ export class TransactionController {
       const result = await this.transactionService.uploadPaymentProof(
         transactionId,
         req.file.path,
+        userId,
       );
 
       res.status(200).json({
@@ -54,9 +56,11 @@ export class TransactionController {
 ) {
   try {
     const transactionId = Number(req.params.id);
+    const organizerId = (req as any).user.id;
 
     const result = await this.transactionService.approveTransaction(
       transactionId,
+      organizerId,
     );
 
     res.status(200).json({
@@ -76,9 +80,7 @@ async rejectTransaction(
 ) {
   try {
     const transactionId = Number(req.params.id);
-
-    // sementara sebelum JWT
-    const organizerId = 2;
+    const organizerId = (req as any).user.id;
 
     const result = await this.transactionService.rejectTransaction(
       transactionId,

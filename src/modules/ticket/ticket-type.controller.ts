@@ -16,12 +16,14 @@ export class TicketTypeController {
   ) {
     try {
       const conferenceId = Number(req.params.conferenceId);
+      const organizerId = (req as any).user.id;
 
       const body = createTicketTypeSchema.parse(req.body);
 
       const result = await this.ticketTypeService.create(
         conferenceId,
-        body
+        body,
+        organizerId
       );
 
       res.status(201).json({
@@ -82,12 +84,14 @@ export class TicketTypeController {
   ) {
     try {
       const id = Number(req.params.id);
+      const organizerId = (req as any).user.id;
 
       const body = updateTicketTypeSchema.parse(req.body);
 
       const result = await this.ticketTypeService.update(
         id,
-        body
+        body,
+        organizerId
       );
 
       res.status(200).json({
@@ -106,8 +110,9 @@ export class TicketTypeController {
   ) {
     try {
       const id = Number(req.params.id);
+      const organizerId = (req as any).user.id;
 
-      await this.ticketTypeService.delete(id);
+      await this.ticketTypeService.delete(id, organizerId);
 
       res.status(200).json({
         message: "Jenis tiket berhasil dihapus",

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   MapPin,
   CalendarDays,
@@ -10,14 +10,18 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  LogIn,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import { useConferenceDetail } from "../../hooks/useConferenceDetail";
 import { useTicketTypes } from "../../hooks/useTicketTypes";
 import { useReviews } from "../../hooks/useReviews";
+import { useAuth } from "../../context/AuthContext";
 import { createTransaction } from "../../api/transaction.api";
 import { createReview } from "../../api/review.api";
 import { formatIDR } from "../../utils/currency";
+import { getConferenceTimeStatus } from "../../utils/conferenceStatus";
 import Button from "../../components/ui/Button";
 import Skeleton from "../../components/ui/Skeleton";
 import ImagePlaceholder from "../../components/ui/ImagePlaceholder";
@@ -49,6 +53,8 @@ const StarRating = ({
 const ConferenceDetail = () => {
   const { id } = useParams();
   const conferenceId = Number(id);
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
 
   const { conference, loading, error } = useConferenceDetail(conferenceId);
   const {
@@ -81,6 +87,24 @@ const ConferenceDetail = () => {
       reviews.length
     : null;
 
+  const conferenceEnded = conference
+    ? getConferenceTimeStatus(conference.startDate, conference.endDate) ===
+      "Ended"
+    : false;
+
+  const hasReviewed =
+    isAuthenticated && reviews.some((review) => review.userId === user?.id);
+
+  const reviewGateMessage = !isAuthenticated
+    ? "Log in to write a review for this conference."
+    : !conferenceEnded
+    ? "You can review this conference after it has ended."
+    : hasReviewed
+    ? "You have already reviewed this conference."
+    : "";
+
+  const canWriteReview = !reviewGateMessage;
+
   const selectedTicketType = ticketTypes.find(
     (ticketType) => ticketType.id === selectedTicketTypeId
   );
@@ -103,6 +127,11 @@ const ConferenceDetail = () => {
   };
 
   const handleBuyTicket = async () => {
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: { pathname: `/conferences/${conferenceId}` } } });
+      return;
+    }
+
     if (!selectedTicketType) {
       alert("Pilih jenis tiket terlebih dahulu.");
       return;
@@ -152,12 +181,12 @@ const ConferenceDetail = () => {
     e.preventDefault();
 
     if (rating < 1) {
-      alert("Pilih rating terlebih dahulu.");
+      toast.error("Pilih rating terlebih dahulu.");
       return;
     }
 
     if (!comment.trim()) {
-      alert("Komentar tidak boleh kosong.");
+      toast.error("Komentar tidak boleh kosong.");
       return;
     }
 
@@ -173,11 +202,12 @@ const ConferenceDetail = () => {
       setRating(0);
       setComment("");
       refetchReviews();
-    } catch (err) {
+      toast.success("Review berhasil dikirim!");
+    } catch (err: any) {
       const message =
-        err instanceof Error ? err.message : "Gagal mengirim review.";
+        err?.response?.data?.message || "Gagal mengirim review.";
 
-      alert(message);
+      toast.error(message);
     } finally {
       setSubmittingReview(false);
     }
@@ -333,68 +363,99 @@ const ConferenceDetail = () => {
               )}
             </div>
 
-            <form
-              onSubmit={handleSubmitReview}
-              className="mt-6 space-y-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-5"
-            >
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">
-                  Your Rating
-                </p>
-                <div
-                  className="flex gap-1"
-                  onMouseLeave={() => setHoveredRating(0)}
-                >
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setRating(star)}
-                      onMouseEnter={() => setHoveredRating(star)}
-                      aria-label={`Rate ${star} star`}
-                      className="transition-transform duration-150 hover:scale-110"
-                    >
-                      <Star
-                        size={28}
-                        className={
-                          star <= (hoveredRating || rating)
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-gray-300"
-                        }
-                      />
-                    </button>
-                  ))}
+            {canWriteReview ? (
+              <form
+                onSubmit={handleSubmitReview}
+                className="mt-6 space-y-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-5"
+              >
+                <div>
+                  <p className="mb-2 text-sm font-medium text-slate-700">
+                    Your Rating
+                  </p>
+                  <div
+                    className="flex gap-1"
+                    onMouseLeave={() => setHoveredRating(0)}
+                  >
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRating(star)}
+                        onMouseEnter={() => setHoveredRating(star)}
+                        aria-label={`Rate ${star} star`}
+                        className="transition-transform duration-150 hover:scale-110"
+                      >
+                        <Star
+                          size={28}
+                          className={
+                            star <= (hoveredRating || rating)
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-gray-300"
+                          }
+                        />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label
-                  htmlFor="comment"
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
-                >
-                  Comment
-                </label>
-                <textarea
-                  id="comment"
-                  rows={3}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Share your experience about this conference..."
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none transition-all duration-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                />
-              </div>
+                <div>
+                  <label
+                    htmlFor="comment"
+                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                  >
+                    Comment
+                  </label>
+                  <textarea
+                    id="comment"
+                    rows={3}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Share your experience about this conference..."
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none transition-all duration-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  />
+                </div>
 
-              <Button type="submit" disabled={submittingReview}>
-                {submittingReview ? (
+                <Button type="submit" disabled={submittingReview}>
+                  {submittingReview ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Review"
+                  )}
+                </Button>
+              </form>
+            ) : (
+              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-5 text-sm text-slate-500">
+                {!isAuthenticated ? (
                   <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Submitting...
+                    <LogIn size={18} className="shrink-0 text-slate-400" />
+                    <span>
+                      {reviewGateMessage}{" "}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate("/login", {
+                            state: {
+                              from: { pathname: `/conferences/${conferenceId}` },
+                            },
+                          })
+                        }
+                        className="font-semibold text-blue-600 hover:text-blue-700"
+                      >
+                        Log in
+                      </button>
+                    </span>
                   </>
                 ) : (
-                  "Submit Review"
+                  <>
+                    <AlertCircle size={18} className="shrink-0 text-slate-400" />
+                    <span>{reviewGateMessage}</span>
+                  </>
                 )}
-              </Button>
-            </form>
+              </div>
+            )}
 
             <div className="mt-6">
               {reviewsLoading ? (
@@ -565,7 +626,7 @@ const ConferenceDetail = () => {
 
             <Button
               onClick={handleBuyTicket}
-              disabled={!selectedTicketType || submitting}
+              disabled={(isAuthenticated && !selectedTicketType) || submitting}
               className="mt-6 w-full"
             >
               {submitting ? (
@@ -573,8 +634,10 @@ const ConferenceDetail = () => {
                   <Loader2 size={16} className="animate-spin" />
                   Processing...
                 </>
-              ) : (
+              ) : isAuthenticated ? (
                 "Buy Ticket"
+              ) : (
+                "Log in to Buy Ticket"
               )}
             </Button>
           </div>

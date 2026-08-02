@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 import Button from "../ui/Button";
 import Container from "../ui/Container";
+import { useAuth } from "../../context/AuthContext";
 
 const navLinks = [
   { to: "/", label: "Discover" },
@@ -14,6 +15,14 @@ const navLinks = [
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    setIsMenuOpen(false);
+    navigate("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md">
@@ -39,9 +48,34 @@ const Navbar = () => {
             ))}
           </nav>
 
-          <div className="hidden gap-3 lg:flex">
-            <Button variant="secondary">Login</Button>
-            <Button>Register</Button>
+          <div className="hidden items-center gap-3 lg:flex">
+            {isAuthenticated ? (
+              <>
+                {user?.role === "ORGANIZER" && (
+                  <Link
+                    to="/dashboard"
+                    className="text-sm font-medium text-slate-600 transition-colors duration-200 hover:text-slate-900"
+                  >
+                    Dashboard
+                  </Link>
+                )}
+                <span className="text-sm font-medium text-slate-700">
+                  {user?.fullName}
+                </span>
+                <Button variant="secondary" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/login">
+                  <Button variant="secondary">Login</Button>
+                </Link>
+                <Link to="/register">
+                  <Button>Register</Button>
+                </Link>
+              </>
+            )}
           </div>
 
           <button
@@ -69,10 +103,26 @@ const Navbar = () => {
             ))}
 
             <div className="mt-3 flex gap-3 px-3">
-              <Button variant="secondary" className="flex-1">
-                Login
-              </Button>
-              <Button className="flex-1">Register</Button>
+              {isAuthenticated ? (
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </Button>
+              ) : (
+                <>
+                  <Link to="/login" className="flex-1" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="secondary" className="w-full">
+                      Login
+                    </Button>
+                  </Link>
+                  <Link to="/register" className="flex-1" onClick={() => setIsMenuOpen(false)}>
+                    <Button className="w-full">Register</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

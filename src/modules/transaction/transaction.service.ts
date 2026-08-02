@@ -164,12 +164,23 @@ export class TransactionService {
     return transaction;
   }
 
-  async uploadPaymentProof(transactionId: number, paymentProof: string) {
+  async uploadPaymentProof(
+    transactionId: number,
+    paymentProof: string,
+    userId: number,
+  ) {
     const transaction =
       await this.transactionRepository.findById(transactionId);
 
     if (!transaction) {
       throw new NotFoundError("Transaksi tidak ditemukan");
+    }
+
+    if (transaction.userId !== userId) {
+      throw new AppError(
+        "Anda tidak memiliki akses ke transaksi ini",
+        403,
+      );
     }
 
     if (transaction.status !== TransactionStatus.WAITING_PAYMENT) {
@@ -186,12 +197,19 @@ export class TransactionService {
     });
   }
 
-  async approveTransaction(transactionId: number) {
+  async approveTransaction(transactionId: number, organizerId: number) {
     const transaction =
       await this.transactionRepository.findById(transactionId);
 
     if (!transaction) {
       throw new NotFoundError("Transaksi tidak ditemukan");
+    }
+
+    if (transaction.conference.organizerId !== organizerId) {
+      throw new AppError(
+        "Anda tidak memiliki akses untuk menyetujui transaksi ini",
+        403,
+      );
     }
 
     if (transaction.status !== TransactionStatus.WAITING_CONFIRMATION) {
@@ -203,12 +221,19 @@ export class TransactionService {
     });
   }
 
-  async rejectTransaction(transactionId: number, approvedBy: number) {
+  async rejectTransaction(transactionId: number, organizerId: number) {
     const transaction =
       await this.transactionRepository.findById(transactionId);
 
     if (!transaction) {
       throw new NotFoundError("Transaksi tidak ditemukan");
+    }
+
+    if (transaction.conference.organizerId !== organizerId) {
+      throw new AppError(
+        "Anda tidak memiliki akses untuk menolak transaksi ini",
+        403,
+      );
     }
 
     if (transaction.status !== TransactionStatus.WAITING_CONFIRMATION) {
@@ -233,7 +258,6 @@ export class TransactionService {
         },
         data: {
           status: TransactionStatus.REJECTED,
-          approvedBy,
         },
       });
     });

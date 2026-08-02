@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { ReviewService } from "./review.service";
-import { createReviewSchema } from "./review.validation";
+import { createReviewSchema, updateReviewSchema } from "./review.validation";
 
 export class ReviewController {
   private reviewService: ReviewService;
@@ -11,8 +11,7 @@ export class ReviewController {
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // sementara sebelum JWT
-      const userId = 1;
+      const userId = (req as any).user.id;
 
       const dto = createReviewSchema.parse(req.body);
 
@@ -65,9 +64,13 @@ export class ReviewController {
 
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const userId = (req as any).user.id;
+      const dto = updateReviewSchema.parse(req.body);
+
       const result = await this.reviewService.update(
         Number(req.params.id),
-        req.body
+        dto,
+        userId
       );
 
       res.status(200).json({
@@ -81,7 +84,9 @@ export class ReviewController {
 
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await this.reviewService.delete(Number(req.params.id));
+      const userId = (req as any).user.id;
+
+      await this.reviewService.delete(Number(req.params.id), userId);
 
       res.status(200).json({
         message: "Review berhasil dihapus",

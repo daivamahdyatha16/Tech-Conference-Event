@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import MainLayout from "../layouts/MainLayout";
+import ProtectedRoute from "./ProtectedRoute";
 
 import Home from "../pages/Home";
 import About from "../pages/About";
@@ -40,13 +41,18 @@ export const router = createBrowserRouter([
         element: <ConferenceDetail />,
       },
       {
-        path: "dashboard",
-        element: <Dashboard />,
+        element: <ProtectedRoute allowedRoles={["ORGANIZER"]} />,
+        children: [
+          {
+            path: "dashboard",
+            element: <Dashboard />,
+          },
+          {
+            path: "create-conference",
+            element: <CreateConference />,
+          },
+        ],
       },
-      {
-        path: "create-conference",
-        element: <CreateConference />,
-      }
     ],
   },
 

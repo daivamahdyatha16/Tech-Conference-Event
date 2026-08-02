@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
+import { AppError } from "../errors/AppError";
 
 export const errorMiddleware = (
   err: any,
@@ -15,6 +16,13 @@ export const errorMiddleware = (
         field: issue.path.join("."),
         message: issue.message,
       })),
+    });
+  }
+
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      message: err.message,
     });
   }
 

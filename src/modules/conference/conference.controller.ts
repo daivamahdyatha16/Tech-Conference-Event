@@ -11,7 +11,7 @@ export class ConferenceController {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const organizerId = 1;
+      const organizerId = (req as any).user.id;
 
       const dto = createConferenceSchema.parse(req.body);
 
