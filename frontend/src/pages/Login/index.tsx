@@ -6,9 +6,10 @@ import * as Yup from "yup";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
+import { getErrorMessage } from "../../utils/error";
 
 interface LoginFormValues {
   email: string;
@@ -44,11 +45,8 @@ const Login = () => {
 
       toast.success("Login berhasil!");
       navigate(from, { replace: true });
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message || "Email atau password salah.";
-
-      setSubmitError(message);
+    } catch (err) {
+      setSubmitError(getErrorMessage(err, "Email atau password salah."));
     } finally {
       setSubmitting(false);
     }

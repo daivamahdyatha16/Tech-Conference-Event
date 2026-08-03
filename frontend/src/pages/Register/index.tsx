@@ -6,9 +6,10 @@ import * as Yup from "yup";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
+import { getErrorMessage } from "../../utils/error";
 
 interface RegisterFormValues {
   fullName: string;
@@ -60,11 +61,8 @@ const Register = () => {
 
       toast.success("Registrasi berhasil! Silakan login.");
       navigate("/login");
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message || "Gagal melakukan registrasi.";
-
-      setSubmitError(message);
+    } catch (err) {
+      setSubmitError(getErrorMessage(err, "Gagal melakukan registrasi."));
     } finally {
       setSubmitting(false);
     }

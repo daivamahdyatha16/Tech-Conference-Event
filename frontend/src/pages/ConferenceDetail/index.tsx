@@ -17,11 +17,12 @@ import toast from "react-hot-toast";
 import { useConferenceDetail } from "../../hooks/useConferenceDetail";
 import { useTicketTypes } from "../../hooks/useTicketTypes";
 import { useReviews } from "../../hooks/useReviews";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 import { createTransaction } from "../../api/transaction.api";
 import { createReview } from "../../api/review.api";
 import { formatIDR } from "../../utils/currency";
 import { getConferenceTimeStatus } from "../../utils/conferenceStatus";
+import { getErrorMessage } from "../../utils/error";
 import Button from "../../components/ui/Button";
 import Skeleton from "../../components/ui/Skeleton";
 import ImagePlaceholder from "../../components/ui/ImagePlaceholder";
@@ -203,11 +204,8 @@ const ConferenceDetail = () => {
       setComment("");
       refetchReviews();
       toast.success("Review berhasil dikirim!");
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message || "Gagal mengirim review.";
-
-      toast.error(message);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Gagal mengirim review."));
     } finally {
       setSubmittingReview(false);
     }

@@ -4,7 +4,7 @@ import { Menu, X } from "lucide-react";
 
 import Button from "../ui/Button";
 import Container from "../ui/Container";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 
 const navLinks = [
   { to: "/", label: "Discover" },

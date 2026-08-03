@@ -1,36 +1,26 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import {
   login as loginApi,
   register as registerApi,
 } from "../api/auth.api";
 import type { AuthUser, LoginPayload, RegisterPayload } from "../api/auth.api";
+import { AuthContext } from "./auth-context";
 
-interface AuthContextValue {
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  loading: boolean;
-  login: (payload: LoginPayload) => Promise<AuthUser>;
-  register: (payload: RegisterPayload) => Promise<void>;
-  logout: () => void;
-}
+const getStoredUser = (): AuthUser | null => {
+  const storedToken = localStorage.getItem("token");
+  const storedUser = localStorage.getItem("user");
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+  if (storedToken && storedUser) {
+    return JSON.parse(storedUser);
+  }
+
+  return null;
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
-
-    if (storedToken && storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-
-    setLoading(false);
-  }, []);
+  const [user, setUser] = useState<AuthUser | null>(getStoredUser);
+  const [loading] = useState(false);
 
   const login = async (payload: LoginPayload) => {
     const response = await loginApi(payload);
@@ -67,14 +57,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-
-  return context;
 };
