@@ -6,6 +6,8 @@ import {
 } from "./conference.interface";
 import { ConferenceRepository } from "./conference.repository";
 import { NotFoundError } from "../../errors/NotFoundError";
+import { AppError } from "../../errors/AppError";
+import { prisma } from "../../configs/prisma";
 
 export class ConferenceService {
   private conferenceRepository = new ConferenceRepository();
@@ -19,7 +21,8 @@ export class ConferenceService {
       startDate: dto.startDate,
       endDate: dto.endDate,
       isFree: dto.isFree,
-      status: ConferenceStatus.DRAFT,
+      thumbnail: dto.thumbnail,
+      status: ConferenceStatus.PUBLISHED,
 
       organizer: {
         connect: {
@@ -49,28 +52,35 @@ export class ConferenceService {
       limit,
     });
     return {
-      data : result.data,
+      data: result.data,
       meta: {
         page,
         limit,
         totalData: result.total,
         totalPage: Math.ceil(result.total / limit),
       },
-    }
+    };
   }
 
   async findById(id: number) {
     const conference = await this.conferenceRepository.findById(id);
 
     if (!conference) {
-      throw new NotFoundError("Conference tidak ditemukan");
+      throw new NotFoundError("Conference not found");
     }
 
     return conference;
   }
 
-  async update(id: number, dto: UpdateConferenceDTO) {
-    await this.findById(id);
+  async update(id: number, dto: UpdateConferenceDTO, organizerId: number) {
+    const conference = await this.findById(id);
+
+    if (conference.organizerId !== organizerId) {
+      throw new AppError(
+        "You do not have permission to update this conference",
+        403,
+      );
+    }
 
     const data = {
       title: dto.title,
@@ -80,6 +90,7 @@ export class ConferenceService {
       startDate: dto.startDate,
       endDate: dto.endDate,
       isFree: dto.isFree,
+      thumbnail: dto.thumbnail,
       category: dto.categoryId
         ? {
             connect: {
@@ -92,8 +103,26 @@ export class ConferenceService {
     return this.conferenceRepository.update(id, data);
   }
 
-  async delete(id: number) {
-    await this.findById(id);
+  async delete(id: number, organizerId: number) {
+    const conference = await this.findById(id);
+
+    if (conference.organizerId !== organizerId) {
+      throw new AppError(
+        "You do not have permission to delete this conference",
+        403,
+      );
+    }
+
+    const transactionCount = await prisma.transaction.count({
+      where: { conferenceId: id },
+    });
+
+    if (transactionCount > 0) {
+      throw new AppError(
+        "This conference cannot be deleted because it already has transactions",
+        400,
+      );
+    }
 
     return this.conferenceRepository.delete(id);
   }

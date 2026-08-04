@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { ReviewService } from "./review.service";
+import { createReviewSchema, updateReviewSchema } from "./review.validation";
 
 export class ReviewController {
   private reviewService: ReviewService;
@@ -10,10 +11,14 @@ export class ReviewController {
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.reviewService.create(req.body);
+      const userId = (req as any).user.id;
+
+      const dto = createReviewSchema.parse(req.body);
+
+      const result = await this.reviewService.create(dto, userId);
 
       res.status(201).json({
-        message: "Review berhasil dibuat",
+        message: "Review created successfully",
         data: result,
       });
     } catch (error) {
@@ -25,11 +30,18 @@ export class ReviewController {
     try {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
+      const conferenceId = req.query.conferenceId
+        ? Number(req.query.conferenceId)
+        : undefined;
 
-      const result = await this.reviewService.findAll(page, limit);
+      const result = await this.reviewService.findAll(
+        page,
+        limit,
+        conferenceId
+      );
 
       res.status(200).json({
-        message: "Daftar review",
+        message: "Review list retrieved successfully",
         data: result,
       });
     } catch (error) {
@@ -42,7 +54,7 @@ export class ReviewController {
       const result = await this.reviewService.findById(Number(req.params.id));
 
       res.status(200).json({
-        message: "Detail review",
+        message: "Review detail retrieved successfully",
         data: result,
       });
     } catch (error) {
@@ -52,13 +64,17 @@ export class ReviewController {
 
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const userId = (req as any).user.id;
+      const dto = updateReviewSchema.parse(req.body);
+
       const result = await this.reviewService.update(
         Number(req.params.id),
-        req.body
+        dto,
+        userId
       );
 
       res.status(200).json({
-        message: "Review berhasil diupdate",
+        message: "Review updated successfully",
         data: result,
       });
     } catch (error) {
@@ -68,10 +84,12 @@ export class ReviewController {
 
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await this.reviewService.delete(Number(req.params.id));
+      const userId = (req as any).user.id;
+
+      await this.reviewService.delete(Number(req.params.id), userId);
 
       res.status(200).json({
-        message: "Review berhasil dihapus",
+        message: "Review deleted successfully",
       });
     } catch (error) {
       next(error);

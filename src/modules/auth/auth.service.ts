@@ -13,7 +13,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new AppError("Email sudah terdaftar", 400);
+      throw new AppError("Email is already registered", 400);
     }
 
     let referrer = null;
@@ -23,7 +23,7 @@ export class AuthService {
       });
 
       if (!referrer) {
-        throw new AppError("Kode referral tidak ditemukan", 400);
+        throw new AppError("Referral code not found", 400);
       }
     }
 
@@ -31,7 +31,7 @@ export class AuthService {
         where: { phoneNumber },
     });
     if (existingPhone) {
-        throw new AppError("Nomor handphone sudah digunakan", 400);
+        throw new AppError("Phone number is already in use", 400);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -59,7 +59,7 @@ export class AuthService {
             userId: referrer.id,
             point: 10000,
             type: PointType.EARN,
-            description: `Reward referral dari pendaftaran ${user.fullName}`,
+            description: `Referral reward from ${user.fullName}'s registration`,
             expiredAt: expiryDate,
           },
         });
@@ -72,7 +72,7 @@ export class AuthService {
             expiredAt: expiryDate,
           },
         });
-      } // 
+      }
 
       return user;
     });
@@ -88,12 +88,12 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new AppError("Email atau password salah", 401);
+      throw new AppError("Invalid email or password", 401);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      throw new AppError("Email atau password salah", 401);
+      throw new AppError("Invalid email or password", 401);
     }
 
     const token = jwt.sign(
@@ -123,9 +123,41 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new AppError("User tidak ditemukan", 404);
+      throw new AppError("User not found", 404);
     }
 
-    return user;
+    const now = new Date();
+
+    // pointBalance & coupons are needed for the checkout UI (point redemption
+    // & referral coupon usage) - REDEEM point rows are stored with expiredAt
+    // null (see transaction.service.ts) so they still count toward the balance.
+    const [pointAggregate, coupons] = await Promise.all([
+      prisma.pointHistory.aggregate({
+        where: {
+          userId: user.id,
+          OR: [{ expiredAt: null }, { expiredAt: { gte: now } }],
+        },
+        _sum: { point: true },
+      }),
+      prisma.coupon.findMany({
+        where: {
+          userId: user.id,
+          isUsed: false,
+          expiredAt: { gte: now },
+        },
+        select: {
+          id: true,
+          discountType: true,
+          discountValue: true,
+          expiredAt: true,
+        },
+      }),
+    ]);
+
+    return {
+      ...user,
+      pointBalance: pointAggregate._sum.point || 0,
+      coupons,
+    };
   }
 }

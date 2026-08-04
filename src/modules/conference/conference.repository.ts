@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { ConferenceStatus, Prisma } from "@prisma/client";
 import { prisma } from "../../configs/prisma";
 import { ConferenceQuery } from "./conference.interface";
 
@@ -8,51 +8,93 @@ export class ConferenceRepository {
       data,
     });
   }
+
   async findById(id: number) {
     return prisma.conference.findUnique({
       where: {
         id,
       },
+      include: {
+        category: true,
+        organizer: {
+          select: { fullName: true },
+        },
+      },
     });
   }
+
   async findAll(query: ConferenceQuery & { skip: number }) {
-    const where: Prisma.ConferenceWhereInput = {};
+    // GET /conferences is a public endpoint — only PUBLISHED conferences may appear.
+    const where: Prisma.ConferenceWhereInput = {
+      status: ConferenceStatus.PUBLISHED,
+    };
+
     if (query.search) {
-      where.title = {
-        contains: query.search,
-        mode: "insensitive",
-      };
+      where.OR = [
+        {
+          title: {
+            contains: query.search,
+            mode: "insensitive",
+          },
+        },
+        {
+          description: {
+            contains: query.search,
+            mode: "insensitive",
+          },
+        },
+        {
+          city: {
+            contains: query.search,
+            mode: "insensitive",
+          },
+        },
+      ];
     }
+
     if (query.city) {
       where.city = {
         equals: query.city,
         mode: "insensitive",
       };
     }
+
     if (query.categoryId) {
-      where.categoryId = query.categoryId;
+      where.categoryId = Number(query.categoryId);
     }
+
     if (query.isFree !== undefined) {
       where.isFree = query.isFree;
     }
 
-    const [data,total] = await prisma.$transaction([
+    const [data, total] = await prisma.$transaction([
       prisma.conference.findMany({
         where,
         skip: query.skip,
         take: query.limit,
         orderBy: {
-          startDate: "desc",
+          [query.sortBy ?? "startDate"]: query.sortOrder ?? "asc",
+        },
+        include: {
+          category: true,
+          organizer: {
+            select: { fullName: true },
+          },
+          promotions: true,
         },
       }),
+
       prisma.conference.count({
         where,
       }),
     ]);
+
     return {
-      data, total,
+      data,
+      total,
     };
   }
+
   async update(id: number, data: Prisma.ConferenceUpdateInput) {
     return prisma.conference.update({
       where: {
@@ -70,5 +112,3 @@ export class ConferenceRepository {
     });
   }
 }
-
-// export default new ConferenceRepository();

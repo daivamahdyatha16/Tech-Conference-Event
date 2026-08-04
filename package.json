@@ -9,10 +9,12 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "prisma:dedupe-conferences": "tsx prisma/scripts/remove-duplicate-conferences.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
+    "@types/yup": "^0.29.14",
     "bcrypt": "^6.0.0",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
@@ -23,6 +25,7 @@
     "multer": "^2.2.0",
     "multer-storage-cloudinary": "^4.0.0",
     "prisma": "^6.16.2",
+    "yup": "^1.7.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

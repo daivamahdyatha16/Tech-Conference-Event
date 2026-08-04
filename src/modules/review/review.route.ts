@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { ReviewController } from "./review.controller";
+import { authMiddleware } from "../../middleware/auth.middleware";
 
 export class ReviewRouter {
   public router: Router;
@@ -12,11 +13,11 @@ export class ReviewRouter {
   }
 
   private initializeRoutes(): void {
-    this.router.post("/", this.reviewController.create);
+    this.router.post("/", authMiddleware, this.reviewController.create);
     this.router.get("/", this.reviewController.findAll);
     this.router.get("/:id", this.reviewController.findById);
-    this.router.patch("/:id", this.reviewController.update);
-    this.router.delete("/:id", this.reviewController.delete);
+    this.router.patch("/:id", authMiddleware, this.reviewController.update);
+    this.router.delete("/:id", authMiddleware, this.reviewController.delete);
   }
 
   getRouter(): Router {

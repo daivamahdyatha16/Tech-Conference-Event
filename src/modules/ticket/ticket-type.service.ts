@@ -6,6 +6,8 @@ import {
   UpdateTicketTypeDTO,
 } from "./ticket-type.interface";
 import { TicketTypeRepository } from "./ticket-type.repository";
+import { AppError } from "../../errors/AppError";
+import { NotFoundError } from "../../errors/NotFoundError";
 
 export class TicketTypeService {
   private ticketTypeRepository = new TicketTypeRepository();
@@ -13,12 +15,20 @@ export class TicketTypeService {
 
   async create(
     conferenceId: number,
-    dto: CreateTicketTypeDTO
+    dto: CreateTicketTypeDTO,
+    organizerId: number
   ) {
     const conference = await this.conferenceRepository.findById(conferenceId);
 
     if (!conference) {
-      throw new Error("Conference tidak ditemukan");
+      throw new NotFoundError("Conference not found");
+    }
+
+    if (conference.organizerId !== organizerId) {
+      throw new AppError(
+        "You do not have permission to add tickets to this conference",
+        403
+      );
     }
 
     return await this.ticketTypeRepository.create({
@@ -69,23 +79,41 @@ export class TicketTypeService {
     const ticket = await this.ticketTypeRepository.findById(id);
 
     if (!ticket) {
-      throw new Error("Jenis tiket tidak ditemukan");
+      throw new NotFoundError("Ticket type not found");
     }
 
     return ticket;
   }
 
+  private async assertOwnership(conferenceId: number, organizerId: number) {
+    const conference = await this.conferenceRepository.findById(conferenceId);
+
+    if (!conference) {
+      throw new NotFoundError("Conference not found");
+    }
+
+    if (conference.organizerId !== organizerId) {
+      throw new AppError(
+        "You do not have permission to update this ticket",
+        403
+      );
+    }
+  }
+
   async update(
     id: number,
-    dto: UpdateTicketTypeDTO
+    dto: UpdateTicketTypeDTO,
+    organizerId: number
   ) {
-    await this.findById(id);
+    const ticket = await this.findById(id);
+    await this.assertOwnership(ticket.conferenceId, organizerId);
 
     return await this.ticketTypeRepository.update(id, dto);
   }
 
-  async delete(id: number) {
-    await this.findById(id);
+  async delete(id: number, organizerId: number) {
+    const ticket = await this.findById(id);
+    await this.assertOwnership(ticket.conferenceId, organizerId);
 
     return await this.ticketTypeRepository.delete(id);
   }

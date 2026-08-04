@@ -7,6 +7,7 @@ export interface CreateConferenceDTO {
     endDate: Date;
     isFree: boolean;
     categoryId: number;
+    thumbnail?: string;
 }
 
 export interface UpdateConferenceDTO 
@@ -19,4 +20,6 @@ export interface ConferenceQuery {
     isFree?: boolean;
     page?: number;
     limit?: number;
+    sortBy?: "startDate" | "createdAt";
+    sortOrder?: "asc" | "desc";
 }

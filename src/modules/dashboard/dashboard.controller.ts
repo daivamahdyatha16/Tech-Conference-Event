@@ -68,6 +68,23 @@ export class DashboardController {
     }
   }
 
+  static async getTransactions(req: Request, res: Response, next: NextFunction) {
+    try {
+      const organizerId = (req as any).user.id;
+
+      const transactions =
+        await DashboardService.getOrganizerTransactions(organizerId);
+
+      return res.status(200).json({
+        success: true,
+        message: "Organizer transactions retrieved successfully",
+        data: transactions,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async exportTransactionCsv(
     req: Request,
     res: Response,

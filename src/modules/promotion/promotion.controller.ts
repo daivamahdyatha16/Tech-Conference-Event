@@ -10,12 +10,14 @@ export class PromotionController {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
+      const organizerId = (req as any).user.id;
+
       const dto = createPromotionSchema.parse(req.body);
 
-      const result = await this.promotionService.create(dto);
+      const result = await this.promotionService.create(dto, organizerId);
 
       return res.status(201).json({
-        message: "Promosi berhasil dibuat",
+        message: "Promotion created successfully",
         data: result,
       });
     } catch (error) {
@@ -25,7 +27,11 @@ export class PromotionController {
 
   async findAll(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await this.promotionService.findAll();
+      const conferenceId = req.query.conferenceId
+        ? Number(req.query.conferenceId)
+        : undefined;
+
+      const result = await this.promotionService.findAll(conferenceId);
 
       return res.status(200).json({
         message: "Success",
@@ -54,13 +60,14 @@ export class PromotionController {
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
+      const organizerId = (req as any).user.id;
 
       const dto = updatePromotionSchema.parse(req.body);
 
-      const result = await this.promotionService.update(id, dto);
+      const result = await this.promotionService.update(id, dto, organizerId);
 
       return res.status(200).json({
-        message: "Promosi berhasil diperbarui",
+        message: "Promotion updated successfully",
         data: result,
       });
     } catch (error) {
@@ -71,11 +78,12 @@ export class PromotionController {
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
+      const organizerId = (req as any).user.id;
 
-      await this.promotionService.delete(id);
+      await this.promotionService.delete(id, organizerId);
 
       return res.status(200).json({
-        message: "Promosi berhasil dihapus",
+        message: "Promotion deleted successfully",
       });
     } catch (error) {
       next(error);

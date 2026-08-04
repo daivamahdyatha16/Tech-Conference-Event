@@ -11,14 +11,18 @@ export class ConferenceController {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const organizerId = 1;
+      const organizerId = (req as any).user.id;
 
       const dto = createConferenceSchema.parse(req.body);
+      const thumbnail = (req as any).file?.path as string | undefined;
 
-      const result = await this.conferenceService.create(dto, organizerId);
+      const result = await this.conferenceService.create(
+        { ...dto, thumbnail },
+        organizerId,
+      );
 
       return res.status(201).json({
-        message: "Conference berhasil dibuat",
+        message: "Conference created successfully",
         data: result,
       });
     } catch (error) {
@@ -28,6 +32,16 @@ export class ConferenceController {
 
   async findAll(req: Request, res: Response, next: NextFunction) {
     try {
+      const sortBy =
+        req.query.sortBy === "startDate" || req.query.sortBy === "createdAt"
+          ? req.query.sortBy
+          : undefined;
+
+      const sortOrder =
+        req.query.sortOrder === "asc" || req.query.sortOrder === "desc"
+          ? req.query.sortOrder
+          : undefined;
+
       const query: ConferenceQuery = {
         search: req.query.search as string,
         city: req.query.city as string,
@@ -37,6 +51,8 @@ export class ConferenceController {
         isFree: req.query.isFree ? req.query.isFree === "true" : undefined,
         page: req.query.page ? Number(req.query.page) : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
+        sortBy,
+        sortOrder,
       };
       const result = await this.conferenceService.findAll(query);
 
@@ -68,13 +84,19 @@ export class ConferenceController {
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
+      const organizerId = (req as any).user.id;
 
       const dto = updateConferenceSchema.parse(req.body);
+      const thumbnail = (req as any).file?.path as string | undefined;
 
-      const result = await this.conferenceService.update(id, dto);
+      const result = await this.conferenceService.update(
+        id,
+        { ...dto, thumbnail },
+        organizerId,
+      );
 
       return res.status(200).json({
-        message: "Conference berhasil diperbarui",
+        message: "Conference updated successfully",
         data: result,
       });
     } catch (error) {
@@ -84,11 +106,12 @@ export class ConferenceController {
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
+      const organizerId = (req as any).user.id;
 
-      await this.conferenceService.delete(id);
+      await this.conferenceService.delete(id, organizerId);
 
       return res.status(200).json({
-        message: "Conference berhasil dihapus",
+        message: "Conference deleted successfully",
       });
     } catch (error) {
       next(error);

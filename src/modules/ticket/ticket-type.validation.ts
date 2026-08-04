@@ -1,16 +1,16 @@
 import { z } from "zod";
 
 export const ticketTypeSchema = z.object({
-    name: z.string().trim().min(1, "Nama tiket wajib diisi").min(3, "Nama tiket minimal 3 karakter").max(100,"Nama tiket maksimal 100 karakter"),
-    description: z.string().trim().min(1,"Deskripsi tiket tidak boleh kosong").min(10, "Deskripsi tiket minimal 10 karakter").max(500, "Deskripsi tiket maksimal 500 karakter").optional(),
-    price: z.coerce.number().nonnegative("Harga tiket tidak boleh negatif"),
-    quota: z.coerce.number().int().min(1,"Kuota tiket tidak minimal 1"),
+    name: z.string().trim().min(1, "Ticket name is required").min(3, "Ticket name must be at least 3 characters").max(100,"Ticket name must be at most 100 characters"),
+    description: z.string().trim().min(1,"Ticket description cannot be empty").min(10, "Ticket description must be at least 10 characters").max(500, "Ticket description must be at most 500 characters").optional(),
+    price: z.coerce.number().nonnegative("Ticket price cannot be negative"),
+    quota: z.coerce.number().int().min(1,"Ticket quota must be at least 1"),
 });
 
 export const createTicketTypeSchema = ticketTypeSchema;
 export const updateTicketTypeSchema = ticketTypeSchema.partial()
 .refine(
-    (data) => Object.keys(data).length > 0, 
+    (data) => Object.keys(data).length > 0,
     {
-    message: "Setidaknya satu field harus diisi",
+    message: "At least one field must be filled",
 });

@@ -12,7 +12,7 @@ export class AuthController {
 
       return res.status(201).json({
         success: true,
-        message: "Registrasi akun berhasil!",
+        message: "Account registered successfully!",
         data: newUser,
       });
     } catch (error) {
@@ -27,7 +27,7 @@ export class AuthController {
 
       return res.status(200).json({
         success: true,
-        message: "Login berhasil!",
+        message: "Login successful!",
         data: result,
       });
     } catch (error) {
@@ -39,14 +39,14 @@ export class AuthController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new AppError("Tidak terotorisasi", 401);
+        throw new AppError("Unauthorized", 401);
       }
 
       const user = await AuthService.getProfile(userId);
 
       return res.status(200).json({
         success: true,
-        message: "Berhasil mengambil data profile",
+        message: "Profile data retrieved successfully",
         data: user,
       });
     } catch (error) {

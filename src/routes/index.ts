@@ -20,17 +20,17 @@ const authRouter = new AuthRouter();
 const dashboardRouter = new DashboardRouter();
 
 
-router.use("/conference", conferenceRoute.router);
+router.use("/conferences", conferenceRoute.router);
 
-router.use("/category", categoryRoute);
+router.use("/categories", categoryRoute);
 
-router.use("/ticket", ticketTypeRoute.router);
+router.use("/tickets", ticketTypeRoute.router);
 
-router.use("/transaction", transactionRoute.router);
+router.use("/transactions", transactionRoute.router);
 
-router.use("/promotion", promotionRoute.router);
+router.use("/promotions", promotionRoute.router);
 
-router.use("/review", reviewRouter.getRouter());
+router.use("/reviews", reviewRouter.getRouter());
 
 router.use("/auth", authRouter.router);
 
