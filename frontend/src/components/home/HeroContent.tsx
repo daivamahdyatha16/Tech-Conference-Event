@@ -1,11 +1,17 @@
 import CategoryPills from "./CategoryPills";
 import SearchBar from "./SearchBar";
+import logoIcon from "../../assets/logo/logo-icon.png";
 
 const HeroContent = () => {
   return (
     <div className="max-w-2xl">
       <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-700">
-        🚀 Indonesia's Largest Tech Conference Marketplace
+        <img
+          src={logoIcon}
+          alt="TechCon Logo"
+          className="h-4 w-4 object-contain"
+        />
+        Indonesia's Largest Tech Conference Marketplace
       </span>
 
       <h1 className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-900 lg:text-7xl">

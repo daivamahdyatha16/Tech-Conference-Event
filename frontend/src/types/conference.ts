@@ -14,6 +14,18 @@ export interface Conference {
     id: number;
     name: string;
   };
+
+  organizer?: {
+    fullName: string;
+  };
+
+  promotions?: {
+    id: number;
+    discountType: string;
+    discountValue: number;
+    startDate: string;
+    endDate: string;
+  }[];
 }
 
 export interface ConferenceResponse {

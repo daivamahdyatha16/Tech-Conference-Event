@@ -3,13 +3,14 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import type { FormikHelpers } from "formik";
 import * as Yup from "yup";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useAuth } from "../../hooks/useAuth";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { getErrorMessage } from "../../utils/error";
+import logoFull from "../../assets/logo/logo.png";
 
 interface LoginFormValues {
   email: string;
@@ -22,8 +23,8 @@ const initialValues: LoginFormValues = {
 };
 
 const validationSchema = Yup.object({
-  email: Yup.string().email("Format email tidak valid").required("Email wajib diisi"),
-  password: Yup.string().required("Password wajib diisi"),
+  email: Yup.string().email("Invalid email format").required("Email is required"),
+  password: Yup.string().required("Password is required"),
 });
 
 const Login = () => {
@@ -43,10 +44,10 @@ const Login = () => {
 
       await login(values);
 
-      toast.success("Login berhasil!");
+      toast.success("Login successful!");
       navigate(from, { replace: true });
     } catch (err) {
-      setSubmitError(getErrorMessage(err, "Email atau password salah."));
+      setSubmitError(getErrorMessage(err, "Incorrect email or password."));
     } finally {
       setSubmitting(false);
     }
@@ -54,7 +55,24 @@ const Login = () => {
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center px-6 py-12">
-      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+      <Button
+        type="button"
+        variant="outline"
+        aria-label="Back"
+        onClick={() => navigate(from)}
+        className="mb-4 w-fit px-3 py-2 text-xs"
+      >
+        <ArrowLeft size={14} />
+        Back
+      </Button>
+
+      <img
+        src={logoFull}
+        alt="TechCon Logo"
+        className="mx-auto h-16 w-auto object-contain"
+      />
+
+      <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900">
         Welcome back
       </h1>
       <p className="mt-2 text-sm text-slate-500">
@@ -106,7 +124,11 @@ const Login = () => {
 
       <p className="mt-6 text-center text-sm text-slate-500">
         Don&apos;t have an account?{" "}
-        <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+        <Link
+          to="/register"
+          state={location.state}
+          className="font-semibold text-blue-600 hover:text-blue-700"
+        >
           Register
         </Link>
       </p>

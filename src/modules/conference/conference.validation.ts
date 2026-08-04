@@ -1,29 +1,35 @@
 import { z } from "zod";
 
 export const conferenceSchema = z.object({
-    title: z.string().trim().min(1, "Judul wajib diisi").min(3, "Judul konferensi minimal 3 karakter").max(100,"Judul konferensi maksimal 100 karakter"),
-    description: z.string().trim().min(1, "Deskripsi wajib diisi").min(20, "Deskripsi konferensi minimal 20 karakter").max(2000, "Deskripsi konferensi maksimal 2000 karakter"),
-    city: z.string().trim().min(1, "Kota wajib dipilih"),
-    venue: z.string().trim().min(1,"Venue wajib diisi").min(5, "Nama venue minimal 5 karakter").max(150, "Nama venue maksimal 150 karakter"),
-    startDate: z.coerce.date({message: "Tanggal mulai tidak valid"}),
-    endDate: z.coerce.date({message: "Tanggal selesai tidak valid"}),
-    isFree: z.boolean(),
-    categoryId: z.coerce.number().int().positive("Kategori wajib dipilih"),
+    title: z.string().trim().min(1, "Title is required").min(3, "Conference title must be at least 3 characters").max(100,"Conference title must be at most 100 characters"),
+    description: z.string().trim().min(1, "Description is required").min(20, "Conference description must be at least 20 characters").max(2000, "Conference description must be at most 2000 characters"),
+    city: z.string().trim().min(1, "City is required"),
+    venue: z.string().trim().min(1,"Venue is required").min(5, "Venue name must be at least 5 characters").max(150, "Venue name must be at most 150 characters"),
+    startDate: z.coerce.date({message: "Invalid start date"}),
+    endDate: z.coerce.date({message: "Invalid end date"}),
+    // Thumbnail upload requires multipart/form-data, where every field
+    // (including booleans) arrives as a string - coerce "true"/"false"
+    // instead of requiring a real boolean.
+    isFree: z.preprocess(
+      (value) => (typeof value === "string" ? value === "true" : value),
+      z.boolean(),
+    ),
+    categoryId: z.coerce.number().int().positive("Category is required"),
 
 });
 export const createConferenceSchema = conferenceSchema.refine(
-    (data) => data.endDate > data.startDate,
+    (data) => data.endDate >= data.startDate,
     {
-      message: "Tanggal selesai harus setelah tanggal mulai",
+      message: "End date cannot be before start date",
       path: ["endDate"],
     }
   );
 export const updateConferenceSchema = conferenceSchema.partial().refine(
   (data) => !data.startDate ||
       !data.endDate ||
-      data.endDate > data.startDate,
+      data.endDate >= data.startDate,
     {
-      message: "Tanggal selesai harus setelah tanggal mulai",
+      message: "End date cannot be before start date",
       path: ["endDate"],
     }
   );

@@ -20,7 +20,16 @@ export class TransactionRoute {
     this.router.post(
       "/",
       authMiddleware,
+      roleMiddleware(["ATTENDEE"]),
       this.transactionController.create.bind(this.transactionController),
+    );
+
+    this.router.get(
+      "/me",
+      authMiddleware,
+      this.transactionController.findMyTransactions.bind(
+        this.transactionController,
+      ),
     );
 
     this.router.patch(

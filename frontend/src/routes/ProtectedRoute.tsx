@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import logoIcon from "../assets/logo/logo-icon.png";
 
 interface ProtectedRouteProps {
   allowedRoles?: Array<"ATTENDEE" | "ORGANIZER">;
@@ -10,7 +11,15 @@ const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   const location = useLocation();
 
   if (loading) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <img
+          src={logoIcon}
+          alt="TechCon Logo"
+          className="h-12 w-12 animate-pulse object-contain"
+        />
+      </div>
+    );
   }
 
   if (!isAuthenticated) {

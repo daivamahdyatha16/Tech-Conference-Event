@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
+import multer from "multer";
 import { AppError } from "../errors/AppError";
 
 export const errorMiddleware = (
@@ -21,6 +22,13 @@ export const errorMiddleware = (
 
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
       success: false,
       message: err.message,
     });

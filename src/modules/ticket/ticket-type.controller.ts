@@ -27,7 +27,7 @@ export class TicketTypeController {
       );
 
       res.status(201).json({
-        message: "Jenis tiket berhasil dibuat",
+        message: "Ticket type created successfully",
         data: result,
       });
     } catch (error) {
@@ -49,7 +49,7 @@ export class TicketTypeController {
       );
 
       res.status(200).json({
-        message: "Berhasil mendapatkan data jenis tiket",
+        message: "Ticket type data retrieved successfully",
         data: result.data,
         meta: result.meta,
       });
@@ -69,7 +69,7 @@ export class TicketTypeController {
       const result = await this.ticketTypeService.findById(id);
 
       res.status(200).json({
-        message: "Berhasil mendapatkan detail jenis tiket",
+        message: "Ticket type detail retrieved successfully",
         data: result,
       });
     } catch (error) {
@@ -95,7 +95,7 @@ export class TicketTypeController {
       );
 
       res.status(200).json({
-        message: "Jenis tiket berhasil diperbarui",
+        message: "Ticket type updated successfully",
         data: result,
       });
     } catch (error) {
@@ -115,7 +115,7 @@ export class TicketTypeController {
       await this.ticketTypeService.delete(id, organizerId);
 
       res.status(200).json({
-        message: "Jenis tiket berhasil dihapus",
+        message: "Ticket type deleted successfully",
       });
     } catch (error) {
       next(error);

@@ -16,6 +16,9 @@ export class ConferenceRepository {
       },
       include: {
         category: true,
+        organizer: {
+          select: { fullName: true },
+        },
       },
     });
   }
@@ -74,6 +77,10 @@ export class ConferenceRepository {
         },
         include: {
           category: true,
+          organizer: {
+            select: { fullName: true },
+          },
+          promotions: true,
         },
       }),
 

@@ -41,12 +41,17 @@ export const router = createBrowserRouter([
         element: <ConferenceDetail />,
       },
       {
-        element: <ProtectedRoute allowedRoles={["ORGANIZER"]} />,
+        element: <ProtectedRoute allowedRoles={["ORGANIZER", "ATTENDEE"]} />,
         children: [
           {
             path: "dashboard",
             element: <Dashboard />,
           },
+        ],
+      },
+      {
+        element: <ProtectedRoute allowedRoles={["ORGANIZER"]} />,
+        children: [
           {
             path: "create-conference",
             element: <CreateConference />,

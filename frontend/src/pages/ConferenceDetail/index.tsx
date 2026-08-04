@@ -4,7 +4,7 @@ import {
   MapPin,
   CalendarDays,
   Building2,
-  Ticket,
+  User,
   Star,
   Minus,
   Plus,
@@ -13,15 +13,19 @@ import {
   LogIn,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 import { useConferenceDetail } from "../../hooks/useConferenceDetail";
 import { useTicketTypes } from "../../hooks/useTicketTypes";
 import { useReviews } from "../../hooks/useReviews";
 import { useAuth } from "../../hooks/useAuth";
+import { useWallet } from "../../hooks/useWallet";
+import { usePromotion } from "../../hooks/usePromotion";
 import { createTransaction } from "../../api/transaction.api";
 import { createReview } from "../../api/review.api";
 import { formatIDR } from "../../utils/currency";
 import { getConferenceTimeStatus } from "../../utils/conferenceStatus";
+import { formatDateRange } from "../../utils/datetime";
 import { getErrorMessage } from "../../utils/error";
 import Button from "../../components/ui/Button";
 import Skeleton from "../../components/ui/Skeleton";
@@ -72,10 +76,17 @@ const ConferenceDetail = () => {
     refetch: refetchReviews,
   } = useReviews(conferenceId);
 
+  const { pointBalance, coupons, refetch: refetchWallet } = useWallet();
+  const { promotion } = usePromotion(conferenceId);
+
   const [selectedTicketTypeId, setSelectedTicketTypeId] = useState<
     number | null
   >(null);
   const [quantity, setQuantity] = useState(1);
+  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(
+    null
+  );
+  const [pointsToUse, setPointsToUse] = useState<number | "">("");
   const [submitting, setSubmitting] = useState(false);
 
   const [rating, setRating] = useState(0);
@@ -106,6 +117,12 @@ const ConferenceDetail = () => {
 
   const canWriteReview = !reviewGateMessage;
 
+  // Organizers manage events, they don't buy tickets - not even their own
+  // conference's, per business rule. The whole checkout flow is hidden for
+  // them, not just the buy button (backend also enforces this, see
+  // POST /transactions roleMiddleware(["ATTENDEE"])).
+  const isOrganizer = user?.role === "ORGANIZER";
+
   const selectedTicketType = ticketTypes.find(
     (ticketType) => ticketType.id === selectedTicketTypeId
   );
@@ -114,9 +131,38 @@ const ConferenceDetail = () => {
     ? selectedTicketType.price * quantity
     : 0;
 
+  const selectedCoupon = coupons.find(
+    (coupon) => coupon.id === selectedCouponId
+  );
+
+  // Mirrors the backend's calculation order exactly (ticket price ->
+  // promotion -> coupon -> point) purely for display - the server response
+  // after checkout remains the authoritative final price.
+  const promotionDiscount = promotion
+    ? promotion.discountType === "PERCENTAGE"
+      ? (totalPayment * promotion.discountValue) / 100
+      : promotion.discountValue
+    : 0;
+
+  const afterPromotion = Math.max(0, totalPayment - promotionDiscount);
+
+  const couponDiscount = selectedCoupon
+    ? selectedCoupon.discountType === "PERCENTAGE"
+      ? (afterPromotion * selectedCoupon.discountValue) / 100
+      : selectedCoupon.discountValue
+    : 0;
+
+  const afterCoupon = Math.max(0, afterPromotion - couponDiscount);
+
+  const appliedPoints = Math.min(Number(pointsToUse) || 0, afterCoupon);
+
+  const estimatedTotal = Math.max(0, afterCoupon - appliedPoints);
+
   const handleSelectTicketType = (ticketTypeId: number) => {
     setSelectedTicketTypeId(ticketTypeId);
     setQuantity(1);
+    setSelectedCouponId(null);
+    setPointsToUse("");
   };
 
   const clampQuantity = (value: number, max: number) =>
@@ -127,21 +173,53 @@ const ConferenceDetail = () => {
     setQuantity(clampQuantity(value, selectedTicketType.availableSeat));
   };
 
+  const handlePointsChange = (rawValue: string) => {
+    if (rawValue === "") {
+      setPointsToUse("");
+      return;
+    }
+
+    const parsed = Number(rawValue);
+    if (Number.isNaN(parsed)) return;
+
+    const maxUsablePoints = Math.min(pointBalance, totalPayment);
+    setPointsToUse(Math.max(0, Math.min(parsed, maxUsablePoints)));
+  };
+
   const handleBuyTicket = async () => {
     if (!isAuthenticated) {
       navigate("/login", { state: { from: { pathname: `/conferences/${conferenceId}` } } });
       return;
     }
 
+    if (isOrganizer) {
+      toast.error("Organizer accounts cannot purchase tickets.");
+      return;
+    }
+
     if (!selectedTicketType) {
-      alert("Pilih jenis tiket terlebih dahulu.");
+      toast.error("Please select a ticket type first.");
       return;
     }
 
     if (quantity < 1 || quantity > selectedTicketType.availableSeat) {
-      alert("Jumlah tiket tidak valid.");
+      toast.error("Invalid ticket quantity.");
       return;
     }
+
+    const confirmResult = await Swal.fire({
+      title: "Buy this ticket?",
+      text: `${selectedTicketType.name} × ${quantity} — ${
+        conference?.isFree ? "Free" : formatIDR(estimatedTotal)
+      }`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, buy",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#2563eb",
+    });
+
+    if (!confirmResult.isConfirmed) return;
 
     try {
       setSubmitting(true);
@@ -149,30 +227,37 @@ const ConferenceDetail = () => {
       const response = await createTransaction({
         ticketTypeId: selectedTicketType.id,
         quantity,
+        ...(selectedCouponId ? { couponId: selectedCouponId } : {}),
+        ...(Number(pointsToUse) > 0
+          ? { pointUsed: Number(pointsToUse) }
+          : {}),
       });
 
       if (conference?.isFree) {
-        alert("Tiket berhasil didapatkan! Transaksi kamu sudah tercatat.");
+        toast.success("Ticket obtained successfully! Your transaction has been recorded.");
       } else {
         const expiresAt = new Date(response.data.expiresAt).toLocaleString(
           "id-ID"
         );
 
-        alert(
-          `Transaksi berhasil dibuat. Total pembayaran: ${formatIDR(
+        toast.success(
+          `Transaction created successfully. Discount: ${formatIDR(
+            response.data.discount
+          )}. Total payment: ${formatIDR(
             response.data.totalPrice
-          )}. Selesaikan pembayaran sebelum ${expiresAt}.`
+          )}. Complete payment before ${expiresAt}.`
         );
       }
 
       setSelectedTicketTypeId(null);
       setQuantity(1);
+      setSelectedCouponId(null);
+      setPointsToUse("");
       refetchTicketTypes();
+      refetchWallet();
+      navigate("/dashboard", { state: { tab: "WAITING_PAYMENT" } });
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Gagal membuat transaksi.";
-
-      alert(message);
+      toast.error(getErrorMessage(err, "Failed to create transaction."));
     } finally {
       setSubmitting(false);
     }
@@ -182,12 +267,12 @@ const ConferenceDetail = () => {
     e.preventDefault();
 
     if (rating < 1) {
-      toast.error("Pilih rating terlebih dahulu.");
+      toast.error("Please select a rating first.");
       return;
     }
 
     if (!comment.trim()) {
-      toast.error("Komentar tidak boleh kosong.");
+      toast.error("Comment cannot be empty.");
       return;
     }
 
@@ -203,9 +288,9 @@ const ConferenceDetail = () => {
       setRating(0);
       setComment("");
       refetchReviews();
-      toast.success("Review berhasil dikirim!");
+      toast.success("Review submitted successfully!");
     } catch (err) {
-      toast.error(getErrorMessage(err, "Gagal mengirim review."));
+      toast.error(getErrorMessage(err, "Failed to submit review."));
     } finally {
       setSubmittingReview(false);
     }
@@ -316,28 +401,21 @@ const ConferenceDetail = () => {
                   Event Date
                 </p>
                 <p className="font-semibold text-slate-900">
-                  {new Date(conference.startDate).toLocaleDateString(
-                    "id-ID",
-                    { day: "numeric", month: "long", year: "numeric" }
-                  )}
+                  {formatDateRange(conference.startDate, conference.endDate)}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
-                <Ticket size={18} />
+                <User size={18} />
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Price
+                  Organizer
                 </p>
-                <p className="font-semibold">
-                  {conference.isFree ? (
-                    <span className="text-emerald-600">Free</span>
-                  ) : (
-                    <span className="text-amber-600">Paid Event</span>
-                  )}
+                <p className="font-semibold text-slate-900">
+                  {conference.organizer?.fullName ?? "-"}
                 </p>
               </div>
             </div>
@@ -510,7 +588,12 @@ const ConferenceDetail = () => {
               Tickets
             </h2>
 
-            {ticketTypesLoading ? (
+            {isOrganizer ? (
+              <p className="mt-5 text-sm text-slate-500">
+                Organizer accounts can't purchase tickets. Log in as an
+                attendee to buy tickets for this conference.
+              </p>
+            ) : ticketTypesLoading ? (
               <div className="mt-5 space-y-3">
                 <Skeleton className="h-20 w-full rounded-xl" />
                 <Skeleton className="h-20 w-full rounded-xl" />
@@ -608,36 +691,141 @@ const ConferenceDetail = () => {
                     </div>
 
                     {!conference.isFree && (
-                      <div className="flex items-center justify-between border-t border-gray-200 pt-3">
-                        <span className="text-sm text-slate-500">
-                          Total Payment
-                        </span>
-                        <span className="text-lg font-bold text-slate-900">
-                          {formatIDR(totalPayment)}
-                        </span>
-                      </div>
+                      <>
+                        {coupons.length > 0 && (
+                          <div className="space-y-2 border-t border-gray-200 pt-3">
+                            <p className="text-sm font-medium text-slate-700">
+                              Referral Coupon
+                            </p>
+                            <label className="flex items-center gap-2 text-sm text-slate-600">
+                              <input
+                                type="radio"
+                                name="coupon"
+                                checked={selectedCouponId === null}
+                                onChange={() => setSelectedCouponId(null)}
+                                className="h-4 w-4 accent-blue-600"
+                              />
+                              Don't use a coupon
+                            </label>
+                            {coupons.map((coupon) => (
+                              <label
+                                key={coupon.id}
+                                className="flex items-center gap-2 text-sm text-slate-600"
+                              >
+                                <input
+                                  type="radio"
+                                  name="coupon"
+                                  checked={selectedCouponId === coupon.id}
+                                  onChange={() =>
+                                    setSelectedCouponId(coupon.id)
+                                  }
+                                  className="h-4 w-4 accent-blue-600"
+                                />
+                                {coupon.discountType === "PERCENTAGE"
+                                  ? `${coupon.discountValue}% discount coupon`
+                                  : `${formatIDR(
+                                      coupon.discountValue
+                                    )} discount coupon`}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+
+                        {pointBalance > 0 && (
+                          <div className="border-t border-gray-200 pt-3">
+                            <label
+                              htmlFor="pointsToUse"
+                              className="mb-1.5 block text-sm font-medium text-slate-700"
+                            >
+                              Use Points (Balance: {pointBalance.toLocaleString(
+                                "id-ID"
+                              )})
+                            </label>
+                            <input
+                              id="pointsToUse"
+                              type="number"
+                              min={0}
+                              max={Math.min(pointBalance, totalPayment)}
+                              value={pointsToUse}
+                              onChange={(e) =>
+                                handlePointsChange(e.target.value)
+                              }
+                              placeholder="0"
+                              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-all duration-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                            />
+                          </div>
+                        )}
+
+                        <div className="space-y-1.5 border-t border-gray-200 pt-3 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">
+                              Ticket Subtotal
+                            </span>
+                            <span className="font-semibold text-slate-900">
+                              {formatIDR(totalPayment)}
+                            </span>
+                          </div>
+
+                          {promotion && promotionDiscount > 0 && (
+                            <div className="flex items-center justify-between text-emerald-600">
+                              <span>Promotion</span>
+                              <span>-{formatIDR(promotionDiscount)}</span>
+                            </div>
+                          )}
+
+                          {selectedCoupon && couponDiscount > 0 && (
+                            <div className="flex items-center justify-between text-emerald-600">
+                              <span>Coupon</span>
+                              <span>-{formatIDR(couponDiscount)}</span>
+                            </div>
+                          )}
+
+                          {appliedPoints > 0 && (
+                            <div className="flex items-center justify-between text-emerald-600">
+                              <span>Points Used</span>
+                              <span>-{formatIDR(appliedPoints)}</span>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between border-t border-gray-200 pt-1.5">
+                            <span className="font-medium text-slate-700">
+                              Estimated Total
+                            </span>
+                            <span className="text-lg font-bold text-slate-900">
+                              {formatIDR(estimatedTotal)}
+                            </span>
+                          </div>
+
+                          <p className="pt-1 text-xs text-slate-400">
+                            Final price is confirmed by the server after
+                            checkout.
+                          </p>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
               </>
             )}
 
-            <Button
-              onClick={handleBuyTicket}
-              disabled={(isAuthenticated && !selectedTicketType) || submitting}
-              className="mt-6 w-full"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Processing...
-                </>
-              ) : isAuthenticated ? (
-                "Buy Ticket"
-              ) : (
-                "Log in to Buy Ticket"
-              )}
-            </Button>
+            {!isOrganizer && (
+              <Button
+                onClick={handleBuyTicket}
+                disabled={(isAuthenticated && !selectedTicketType) || submitting}
+                className="mt-6 w-full"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Processing...
+                  </>
+                ) : isAuthenticated ? (
+                  "Buy Ticket"
+                ) : (
+                  "Log in to Buy Ticket"
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </div>

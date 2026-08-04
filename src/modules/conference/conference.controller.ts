@@ -14,11 +14,15 @@ export class ConferenceController {
       const organizerId = (req as any).user.id;
 
       const dto = createConferenceSchema.parse(req.body);
+      const thumbnail = (req as any).file?.path as string | undefined;
 
-      const result = await this.conferenceService.create(dto, organizerId);
+      const result = await this.conferenceService.create(
+        { ...dto, thumbnail },
+        organizerId,
+      );
 
       return res.status(201).json({
-        message: "Conference berhasil dibuat",
+        message: "Conference created successfully",
         data: result,
       });
     } catch (error) {
@@ -80,13 +84,19 @@ export class ConferenceController {
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
+      const organizerId = (req as any).user.id;
 
       const dto = updateConferenceSchema.parse(req.body);
+      const thumbnail = (req as any).file?.path as string | undefined;
 
-      const result = await this.conferenceService.update(id, dto);
+      const result = await this.conferenceService.update(
+        id,
+        { ...dto, thumbnail },
+        organizerId,
+      );
 
       return res.status(200).json({
-        message: "Conference berhasil diperbarui",
+        message: "Conference updated successfully",
         data: result,
       });
     } catch (error) {
@@ -96,11 +106,12 @@ export class ConferenceController {
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
+      const organizerId = (req as any).user.id;
 
-      await this.conferenceService.delete(id);
+      await this.conferenceService.delete(id, organizerId);
 
       return res.status(200).json({
-        message: "Conference berhasil dihapus",
+        message: "Conference deleted successfully",
       });
     } catch (error) {
       next(error);

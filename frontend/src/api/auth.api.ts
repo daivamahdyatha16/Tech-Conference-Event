@@ -31,6 +31,19 @@ export interface AuthResponse {
   };
 }
 
+export interface Coupon {
+  id: number;
+  discountType: "PERCENTAGE" | "NOMINAL";
+  discountValue: number;
+  expiredAt: string;
+}
+
+export interface UserProfile extends AuthUser {
+  createdAt: string;
+  pointBalance: number;
+  coupons: Coupon[];
+}
+
 export const login = async (
   payload: LoginPayload,
 ): Promise<AuthResponse> => {
@@ -43,6 +56,16 @@ export const register = async (
   payload: RegisterPayload,
 ): Promise<{ success: boolean; message: string; data: AuthUser }> => {
   const { data } = await api.post("/auth/register", payload);
+
+  return data;
+};
+
+export const getProfile = async (): Promise<{
+  success: boolean;
+  message: string;
+  data: UserProfile;
+}> => {
+  const { data } = await api.get("/auth/me");
 
   return data;
 };

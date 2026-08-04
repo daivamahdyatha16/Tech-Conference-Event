@@ -18,12 +18,12 @@ export class ReviewService {
     });
 
     if (!conference) {
-      throw new NotFoundError("Conference tidak ditemukan");
+      throw new NotFoundError("Conference not found");
     }
 
     if (new Date() < conference.endDate) {
       throw new AppError(
-        "Review hanya bisa diberikan setelah conference selesai",
+        "A review can only be submitted after the conference has ended",
         400,
       );
     }
@@ -38,7 +38,7 @@ export class ReviewService {
 
     if (!approvedTransaction) {
       throw new AppError(
-        "Anda belum membeli tiket conference ini atau pembayaran belum disetujui",
+        "You have not purchased a ticket for this conference, or your payment has not been approved yet",
         400,
       );
     }
@@ -50,7 +50,7 @@ export class ReviewService {
 
     if (existingReview) {
       throw new AppError(
-        "Anda sudah memberikan review untuk conference ini",
+        "You have already reviewed this conference",
         400,
       );
     }
@@ -81,7 +81,7 @@ export class ReviewService {
     const review = await this.reviewRepository.findById(id);
 
     if (!review) {
-      throw new NotFoundError("Review tidak ditemukan");
+      throw new NotFoundError("Review not found");
     }
 
     return review;
@@ -91,7 +91,7 @@ export class ReviewService {
     const review = await this.findById(id);
 
     if (review.userId !== userId) {
-      throw new AppError("Anda tidak memiliki akses untuk mengubah review ini", 403);
+      throw new AppError("You do not have permission to update this review", 403);
     }
 
     return this.reviewRepository.update(id, data);
@@ -101,7 +101,7 @@ export class ReviewService {
     const review = await this.findById(id);
 
     if (review.userId !== userId) {
-      throw new AppError("Anda tidak memiliki akses untuk menghapus review ini", 403);
+      throw new AppError("You do not have permission to delete this review", 403);
     }
 
     return this.reviewRepository.delete(id);

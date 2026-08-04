@@ -18,7 +18,7 @@ export class ReviewController {
       const result = await this.reviewService.create(dto, userId);
 
       res.status(201).json({
-        message: "Review berhasil dibuat",
+        message: "Review created successfully",
         data: result,
       });
     } catch (error) {
@@ -41,7 +41,7 @@ export class ReviewController {
       );
 
       res.status(200).json({
-        message: "Daftar review",
+        message: "Review list retrieved successfully",
         data: result,
       });
     } catch (error) {
@@ -54,7 +54,7 @@ export class ReviewController {
       const result = await this.reviewService.findById(Number(req.params.id));
 
       res.status(200).json({
-        message: "Detail review",
+        message: "Review detail retrieved successfully",
         data: result,
       });
     } catch (error) {
@@ -74,7 +74,7 @@ export class ReviewController {
       );
 
       res.status(200).json({
-        message: "Review berhasil diupdate",
+        message: "Review updated successfully",
         data: result,
       });
     } catch (error) {
@@ -89,7 +89,7 @@ export class ReviewController {
       await this.reviewService.delete(Number(req.params.id), userId);
 
       res.status(200).json({
-        message: "Review berhasil dihapus",
+        message: "Review deleted successfully",
       });
     } catch (error) {
       next(error);

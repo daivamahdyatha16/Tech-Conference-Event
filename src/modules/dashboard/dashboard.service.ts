@@ -1,6 +1,8 @@
 import { PrismaClient, TransactionStatus, Prisma } from "@prisma/client";
+import { TransactionService } from "../transaction/transaction.service";
 
 const prisma = new PrismaClient();
+const transactionService = new TransactionService();
 
 export interface DashboardStatsFilters {
   conferenceId?: number;
@@ -132,6 +134,31 @@ export class DashboardService {
         limit,
       },
     };
+  }
+
+  static async getOrganizerTransactions(organizerId: number) {
+    const dueTransactions = await prisma.transaction.findMany({
+      where: {
+        conference: { organizerId },
+        status: TransactionStatus.WAITING_PAYMENT,
+        expiresAt: { lt: new Date() },
+      },
+      select: { id: true },
+    });
+
+    for (const { id } of dueTransactions) {
+      await transactionService.expireTransactionIfDue(id);
+    }
+
+    return prisma.transaction.findMany({
+      where: { conference: { organizerId } },
+      include: {
+        conference: { select: { title: true } },
+        ticketType: { select: { name: true } },
+        user: { select: { fullName: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   static async getDetailedTransactions(

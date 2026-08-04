@@ -17,6 +17,7 @@ export class DashboardRouter {
     this.router.get("/stats", DashboardController.getStats);
     this.router.get("/chart", DashboardController.getChart);
     this.router.get("/events", DashboardController.getEvents);
+    this.router.get("/transactions", DashboardController.getTransactions);
     this.router.get("/export", DashboardController.exportTransactionCsv);
   }
 }

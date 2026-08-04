@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage, FieldArray } from "formik";
 import type { FormikHelpers } from "formik";
 import * as Yup from "yup";
-import { Loader2, Plus } from "lucide-react";
+import toast from "react-hot-toast";
+import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import { useCategory } from "../../hooks/useCategory";
 import { createConference } from "../../api/conference.api";
 import { createTicketType } from "../../api/ticket.api";
+import { createPromotion } from "../../api/promotion.api";
 import { getMinStartDateTime } from "../../utils/datetime";
+import { getErrorMessage } from "../../utils/error";
 import Button from "../ui/Button";
 
 
@@ -15,6 +19,14 @@ interface TicketTypeFormValues {
   description: string;
   price: number | "";
   quota: number | "";
+}
+
+interface PromotionFormValues {
+  discountType: "PERCENTAGE" | "NOMINAL";
+  discountValue: number | "";
+  quota: number | "";
+  startDate: string;
+  endDate: string;
 }
 
 interface CreateConferenceFormValues {
@@ -26,8 +38,12 @@ interface CreateConferenceFormValues {
   startDate: string;
   endDate: string;
   isFree: boolean;
+  thumbnail: File | null;
   ticketTypes: TicketTypeFormValues[];
+  promotions: PromotionFormValues[];
 }
+
+const MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024;
 
 
 const emptyTicketType: TicketTypeFormValues = {
@@ -35,6 +51,14 @@ const emptyTicketType: TicketTypeFormValues = {
   description: "",
   price: "",
   quota: "",
+};
+
+const emptyPromotion: PromotionFormValues = {
+  discountType: "PERCENTAGE",
+  discountValue: "",
+  quota: "",
+  startDate: "",
+  endDate: "",
 };
 
 
@@ -47,7 +71,9 @@ const initialValues: CreateConferenceFormValues = {
   startDate: "",
   endDate: "",
   isFree: false,
+  thumbnail: null,
   ticketTypes: [{ ...emptyTicketType }],
+  promotions: [],
 };
 
 
@@ -73,11 +99,11 @@ const validationSchema = Yup.object({
     .required("End date is required")
     .test(
       "end-after-start",
-      "End date must be after start date",
+      "End date cannot be before start date",
       function (value) {
         const { startDate } = this.parent as CreateConferenceFormValues;
         if (!startDate || !value) return true;
-        return new Date(value) > new Date(startDate);
+        return new Date(value) >= new Date(startDate);
       }
     ),
   ticketTypes: Yup.array()
@@ -106,12 +132,68 @@ const validationSchema = Yup.object({
       })
     )
     .min(1, "Add at least one ticket type"),
+  promotions: Yup.array()
+    .max(1, "A conference can only have one promotion")
+    .of(
+    Yup.object({
+      discountType: Yup.string()
+        .oneOf(["PERCENTAGE", "NOMINAL"])
+        .required("Discount type is required"),
+      discountValue: Yup.number()
+        .typeError("Discount value is required")
+        .positive("Discount value must be greater than 0")
+        .required("Discount value is required"),
+      quota: Yup.number()
+        .typeError("Quota must be a number")
+        .integer("Quota must be a whole number")
+        .min(1, "Quota must be at least 1"),
+      startDate: Yup.string().required("Start date is required"),
+      endDate: Yup.string()
+        .required("End date is required")
+        .test(
+          "promo-end-after-start",
+          "End date cannot be before start date",
+          function (value) {
+            const { startDate } = this.parent as PromotionFormValues;
+            if (!startDate || !value) return true;
+            return new Date(value) >= new Date(startDate);
+          }
+        ),
+    })
+  ),
 });
 
 
 const CreateConference = () => {
   const navigate = useNavigate();
   const categories = useCategory();
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
+    null
+  );
+
+  const handleThumbnailChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setFieldValue: (field: string, value: unknown) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files are allowed.");
+      return;
+    }
+
+    if (file.size > MAX_THUMBNAIL_SIZE) {
+      toast.error("Image must be 5MB or smaller.");
+      return;
+    }
+
+    setFieldValue("thumbnail", file);
+    setThumbnailPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  };
 
   const handleSubmit = async (
   values: CreateConferenceFormValues,
@@ -127,6 +209,7 @@ const CreateConference = () => {
       endDate: values.endDate,
       isFree: values.isFree,
       categoryId: values.categoryId as number,
+      thumbnail: values.thumbnail ?? undefined,
     });
 
     await Promise.all(
@@ -140,18 +223,31 @@ const CreateConference = () => {
       )
     );
 
-    alert("Conference created successfully!");
+    await Promise.all(
+      values.promotions.slice(0, 1).map((promotion) =>
+        createPromotion({
+          conferenceId: conference.id,
+          promotionType: "EVENT_PROMO",
+          discountType: promotion.discountType,
+          discountValue: Number(promotion.discountValue),
+          quota: promotion.quota === "" ? undefined : Number(promotion.quota),
+          startDate: promotion.startDate,
+          endDate: promotion.endDate,
+        })
+      )
+    );
+
+    toast.success("Conference created successfully!");
 
     resetForm();
+    setThumbnailPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
 
     navigate(`/conferences/${conference.id}`);
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to create conference.";
-
-    alert(message);
+    toast.error(getErrorMessage(error, "Failed to create conference."));
   } finally {
     setSubmitting(false);
   }
@@ -168,6 +264,17 @@ const CreateConference = () => {
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10 lg:py-16">
       <div className="mx-auto max-w-2xl">
+        <Button
+          type="button"
+          variant="outline"
+          aria-label="Back to Dashboard"
+          onClick={() => navigate("/dashboard")}
+          className="mb-4 w-fit px-3 py-2 text-xs"
+        >
+          <ArrowLeft size={14} />
+          Back to Dashboard
+        </Button>
+
         <div className="mb-8">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
             Create Conference
@@ -183,8 +290,32 @@ const CreateConference = () => {
             validationSchema={validationSchema}
             onSubmit={handleSubmit}
           >
-            {({ isSubmitting, values, errors }) => (
+            {({ isSubmitting, values, errors, setFieldValue }) => (
               <Form className="space-y-6">
+                <div>
+                  <label htmlFor="thumbnail" className={labelClass}>
+                    Cover Image
+                  </label>
+                  {thumbnailPreview && (
+                    <img
+                      src={thumbnailPreview}
+                      alt="Thumbnail preview"
+                      className="mb-3 h-40 w-full rounded-xl object-cover"
+                    />
+                  )}
+                  <input
+                    id="thumbnail"
+                    name="thumbnail"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleThumbnailChange(e, setFieldValue)}
+                    className={`${inputClass} cursor-pointer file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700`}
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Optional. PNG or JPG, up to 5MB.
+                  </p>
+                </div>
+
                 <div>
                   <label htmlFor="title" className={labelClass}>
                     Title <span className="text-red-500">*</span>
@@ -289,13 +420,13 @@ const CreateConference = () => {
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div>
                     <label htmlFor="startDate" className={labelClass}>
-                      Start Date &amp; Time <span className="text-red-500">*</span>
+                      Start Date <span className="text-red-500">*</span>
                     </label>
                     <Field
                       id="startDate"
                       name="startDate"
-                      type="datetime-local"
-                      min={getMinStartDateTime()}
+                      type="date"
+                      min={getMinStartDateTime().split("T")[0]}
                       className={inputClass}
                     />
                     <ErrorMessage
@@ -307,13 +438,13 @@ const CreateConference = () => {
 
                   <div>
                     <label htmlFor="endDate" className={labelClass}>
-                      End Date &amp; Time <span className="text-red-500">*</span>
+                      End Date <span className="text-red-500">*</span>
                     </label>
                     <Field
                       id="endDate"
                       name="endDate"
-                      type="datetime-local"
-                      min={values.startDate || getMinStartDateTime()}
+                      type="date"
+                      min={values.startDate || getMinStartDateTime().split("T")[0]}
                       className={inputClass}
                     />
                     <ErrorMessage
@@ -475,6 +606,174 @@ const CreateConference = () => {
                               />
                               <ErrorMessage
                                 name={`ticketTypes.${index}.quota`}
+                                component="p"
+                                className={errorClass}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </FieldArray>
+
+                <hr className="border-slate-100" />
+
+                <FieldArray name="promotions">
+                  {({ push, remove }) => (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-sm font-semibold text-slate-900">
+                            Promotion
+                          </h2>
+                          <p className="text-xs text-slate-500">
+                            Optionally add a discount promotion for this
+                            conference (quota and active period). A
+                            conference can have at most one promotion.
+                          </p>
+                        </div>
+                        {values.promotions.length === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (values.promotions.length >= 1) return;
+                              push({ ...emptyPromotion });
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-all duration-200 hover:bg-blue-100 active:scale-[0.98]"
+                          >
+                            <Plus size={14} />
+                            Add Promotion
+                          </button>
+                        )}
+                      </div>
+
+                      {values.promotions.map((_, index) => (
+                        <div
+                          key={index}
+                          className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-500">
+                              Event Promotion
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => remove(index)}
+                              className="text-xs font-semibold text-red-500 transition hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+
+                          <div className="grid gap-5 sm:grid-cols-2">
+                            <div>
+                              <label
+                                htmlFor={`promotions.${index}.discountType`}
+                                className={labelClass}
+                              >
+                                Discount Type{" "}
+                                <span className="text-red-500">*</span>
+                              </label>
+                              <Field
+                                as="select"
+                                id={`promotions.${index}.discountType`}
+                                name={`promotions.${index}.discountType`}
+                                className={`${inputClass} cursor-pointer appearance-none`}
+                              >
+                                <option value="PERCENTAGE">Percentage (%)</option>
+                                <option value="NOMINAL">Nominal (IDR)</option>
+                              </Field>
+                              <ErrorMessage
+                                name={`promotions.${index}.discountType`}
+                                component="p"
+                                className={errorClass}
+                              />
+                            </div>
+
+                            <div>
+                              <label
+                                htmlFor={`promotions.${index}.discountValue`}
+                                className={labelClass}
+                              >
+                                Discount Value{" "}
+                                <span className="text-red-500">*</span>
+                              </label>
+                              <Field
+                                id={`promotions.${index}.discountValue`}
+                                name={`promotions.${index}.discountValue`}
+                                type="number"
+                                min="0"
+                                placeholder="e.g. 20"
+                                className={inputClass}
+                              />
+                              <ErrorMessage
+                                name={`promotions.${index}.discountValue`}
+                                component="p"
+                                className={errorClass}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor={`promotions.${index}.quota`}
+                              className={labelClass}
+                            >
+                              Quota (leave empty for unlimited)
+                            </label>
+                            <Field
+                              id={`promotions.${index}.quota`}
+                              name={`promotions.${index}.quota`}
+                              type="number"
+                              min="1"
+                              placeholder="e.g. 50"
+                              className={inputClass}
+                            />
+                            <ErrorMessage
+                              name={`promotions.${index}.quota`}
+                              component="p"
+                              className={errorClass}
+                            />
+                          </div>
+
+                          <div className="grid gap-5 sm:grid-cols-2">
+                            <div>
+                              <label
+                                htmlFor={`promotions.${index}.startDate`}
+                                className={labelClass}
+                              >
+                                Start Date{" "}
+                                <span className="text-red-500">*</span>
+                              </label>
+                              <Field
+                                id={`promotions.${index}.startDate`}
+                                name={`promotions.${index}.startDate`}
+                                type="date"
+                                className={inputClass}
+                              />
+                              <ErrorMessage
+                                name={`promotions.${index}.startDate`}
+                                component="p"
+                                className={errorClass}
+                              />
+                            </div>
+
+                            <div>
+                              <label
+                                htmlFor={`promotions.${index}.endDate`}
+                                className={labelClass}
+                              >
+                                End Date <span className="text-red-500">*</span>
+                              </label>
+                              <Field
+                                id={`promotions.${index}.endDate`}
+                                name={`promotions.${index}.endDate`}
+                                type="date"
+                                className={inputClass}
+                              />
+                              <ErrorMessage
+                                name={`promotions.${index}.endDate`}
                                 component="p"
                                 className={errorClass}
                               />

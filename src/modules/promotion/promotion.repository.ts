@@ -9,8 +9,9 @@ export class PromotionRepository {
     });
   }
 
-  async findAll(): Promise<Promotion[]> {
+  async findAll(conferenceId?: number): Promise<Promotion[]> {
     return prisma.promotion.findMany({
+      where: conferenceId ? { conferenceId } : undefined,
       include: {
         conference: true,
       },
@@ -20,7 +21,7 @@ export class PromotionRepository {
     });
   }
 
-  async findById(id: number): Promise<Promotion | null> {
+  async findById(id: number) {
     return prisma.promotion.findUnique({
       where: { id },
       include: {

@@ -21,12 +21,12 @@ export class TicketTypeService {
     const conference = await this.conferenceRepository.findById(conferenceId);
 
     if (!conference) {
-      throw new NotFoundError("Conference tidak ditemukan");
+      throw new NotFoundError("Conference not found");
     }
 
     if (conference.organizerId !== organizerId) {
       throw new AppError(
-        "Anda tidak memiliki akses untuk menambahkan tiket pada conference ini",
+        "You do not have permission to add tickets to this conference",
         403
       );
     }
@@ -79,7 +79,7 @@ export class TicketTypeService {
     const ticket = await this.ticketTypeRepository.findById(id);
 
     if (!ticket) {
-      throw new NotFoundError("Jenis tiket tidak ditemukan");
+      throw new NotFoundError("Ticket type not found");
     }
 
     return ticket;
@@ -89,12 +89,12 @@ export class TicketTypeService {
     const conference = await this.conferenceRepository.findById(conferenceId);
 
     if (!conference) {
-      throw new NotFoundError("Conference tidak ditemukan");
+      throw new NotFoundError("Conference not found");
     }
 
     if (conference.organizerId !== organizerId) {
       throw new AppError(
-        "Anda tidak memiliki akses untuk mengubah tiket ini",
+        "You do not have permission to update this ticket",
         403
       );
     }

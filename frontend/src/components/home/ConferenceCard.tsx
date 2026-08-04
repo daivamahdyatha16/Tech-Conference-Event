@@ -5,6 +5,7 @@ import type { Conference } from "../../types/conference";
 import Button from "../ui/Button";
 import ImagePlaceholder from "../ui/ImagePlaceholder";
 import ConferenceStatusBadge from "../conference/ConferenceStatusBadge";
+import { formatDateRange } from "../../utils/datetime";
 
 // Generic fallback shown when a conference has no uploaded thumbnail.
 import conferencePlaceholderImage from "../../assets/images/conference-placeholder.webp";
@@ -14,6 +15,12 @@ interface ConferenceCardProps {
 }
 
 const ConferenceCard = ({ conference }: ConferenceCardProps) => {
+  const now = new Date();
+  const activePromotion = conference.promotions?.find(
+    (promotion) =>
+      new Date(promotion.startDate) <= now && new Date(promotion.endDate) >= now
+  );
+
   return (
     <Link
       to={`/conferences/${conference.id}`}
@@ -37,6 +44,14 @@ const ConferenceCard = ({ conference }: ConferenceCardProps) => {
             startDate={conference.startDate}
             endDate={conference.endDate}
           />
+
+          {activePromotion && (
+            <span className="inline-block rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
+              {activePromotion.discountType === "PERCENTAGE"
+                ? `${activePromotion.discountValue}% OFF`
+                : "PROMO"}
+            </span>
+          )}
         </div>
 
         <h3 className="line-clamp-2 text-lg font-bold leading-snug text-slate-900 transition-colors duration-200 group-hover:text-blue-600">
@@ -56,11 +71,7 @@ const ConferenceCard = ({ conference }: ConferenceCardProps) => {
           <div className="flex items-center gap-2">
             <Calendar size={15} className="shrink-0 text-slate-400" />
             <span>
-              {new Date(conference.startDate).toLocaleDateString("id-ID", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
+              {formatDateRange(conference.startDate, conference.endDate)}
             </span>
           </div>
         </div>

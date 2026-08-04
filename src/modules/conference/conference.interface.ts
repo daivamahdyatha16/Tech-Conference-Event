@@ -7,6 +7,7 @@ export interface CreateConferenceDTO {
     endDate: Date;
     isFree: boolean;
     categoryId: number;
+    thumbnail?: string;
 }
 
 export interface UpdateConferenceDTO 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import { useConference } from "../../hooks/useConference";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -11,7 +12,10 @@ import ConferenceEmpty from "../../components/conference/ConferenceEmpty";
 import ConferenceCardSkeleton from "../../components/home/ConferenceCardSkeleton";
 
 const Conference = () => {
-  const [search, setSearch] = useState("");
+  const location = useLocation();
+  const [search, setSearch] = useState(
+    () => (location.state as { search?: string })?.search ?? ""
+  );
   const [page, setPage] = useState(1);
   const [categoryId, setCategoryId] = useState<number>();
   const [city, setCity] = useState<string>();

@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import Button from "../ui/Button";
 import Container from "../ui/Container";
 import { useAuth } from "../../hooks/useAuth";
+import logoIcon from "../../assets/logo/logo-icon.png";
 
 const navLinks = [
   { to: "/", label: "Discover" },
@@ -18,6 +19,10 @@ const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
+  const visibleNavLinks = navLinks.filter(
+    (link) => !(link.to === "/for-organizer" && isAuthenticated)
+  );
+
   const handleLogout = () => {
     logout();
     setIsMenuOpen(false);
@@ -30,14 +35,19 @@ const Navbar = () => {
         <div className="flex h-20 items-center justify-between">
           <Link
             to="/"
-            className="text-xl font-extrabold tracking-tight text-slate-900"
+            className="flex items-center text-xl font-extrabold tracking-tight text-slate-900"
             onClick={() => setIsMenuOpen(false)}
           >
+            <img
+              src={logoIcon}
+              alt="TechCon Logo"
+              className="h-9 w-9 object-contain sm:h-10 sm:w-10"
+            />
             Tech<span className="text-blue-600">Con</span>
           </Link>
 
           <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 lg:flex">
-            {navLinks.map((link) => (
+            {visibleNavLinks.map((link) => (
               <Link
                 key={link.label}
                 to={link.to}
@@ -51,14 +61,12 @@ const Navbar = () => {
           <div className="hidden items-center gap-3 lg:flex">
             {isAuthenticated ? (
               <>
-                {user?.role === "ORGANIZER" && (
-                  <Link
-                    to="/dashboard"
-                    className="text-sm font-medium text-slate-600 transition-colors duration-200 hover:text-slate-900"
-                  >
-                    Dashboard
-                  </Link>
-                )}
+                <Link
+                  to="/dashboard"
+                  className="text-sm font-medium text-slate-600 transition-colors duration-200 hover:text-slate-900"
+                >
+                  Dashboard
+                </Link>
                 <span className="text-sm font-medium text-slate-700">
                   {user?.fullName}
                 </span>
@@ -91,7 +99,7 @@ const Navbar = () => {
 
         {isMenuOpen && (
           <div className="animate-fade-in flex flex-col gap-1 border-t border-gray-100 pb-6 pt-2 lg:hidden">
-            {navLinks.map((link) => (
+            {visibleNavLinks.map((link) => (
               <Link
                 key={link.label}
                 to={link.to}
@@ -101,6 +109,16 @@ const Navbar = () => {
                 {link.label}
               </Link>
             ))}
+
+            {isAuthenticated && (
+              <Link
+                to="/dashboard"
+                onClick={() => setIsMenuOpen(false)}
+                className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+              >
+                Dashboard
+              </Link>
+            )}
 
             <div className="mt-3 flex gap-3 px-3">
               {isAuthenticated ? (

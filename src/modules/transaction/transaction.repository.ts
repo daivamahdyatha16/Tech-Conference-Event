@@ -22,6 +22,25 @@ export class TransactionRepository {
     });
   }
 
+  async findByUserId(userId: number) {
+    return prisma.transaction.findMany({
+      where: {
+        userId,
+      },
+      include: {
+        conference: {
+          select: { title: true },
+        },
+        ticketType: {
+          select: { name: true },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
   async update(id: number,data:Prisma.TransactionUpdateInput) {
     return prisma.transaction.update({
       where:{

@@ -10,7 +10,7 @@ export const roleMiddleware = (allowedRoles: string[]) => {
 
     if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({
-        message: "Akses ditolak. Role Anda tidak memiliki izin untuk tindakan ini.",
+        message: "Access denied. Your role does not have permission to perform this action.",
       });
     }
 

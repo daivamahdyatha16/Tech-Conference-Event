@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import type { FormikHelpers } from "formik";
 import * as Yup from "yup";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useAuth } from "../../hooks/useAuth";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { getErrorMessage } from "../../utils/error";
+import logoFull from "../../assets/logo/logo.png";
 
 interface RegisterFormValues {
   fullName: string;
@@ -30,18 +31,21 @@ const initialValues: RegisterFormValues = {
 };
 
 const validationSchema = Yup.object({
-  fullName: Yup.string().min(2, "Nama lengkap minimal 2 karakter").required("Nama lengkap wajib diisi"),
-  email: Yup.string().email("Format email tidak valid").required("Email wajib diisi"),
-  phoneNumber: Yup.string().min(10, "Nomor handphone minimal 10 digit").required("Nomor handphone wajib diisi"),
-  password: Yup.string().min(6, "Password minimal 6 karakter").required("Password wajib diisi"),
+  fullName: Yup.string().min(2, "Full name must be at least 2 characters").required("Full name is required"),
+  email: Yup.string().email("Invalid email format").required("Email is required"),
+  phoneNumber: Yup.string().min(10, "Phone number must be at least 10 digits").required("Phone number is required"),
+  password: Yup.string().min(6, "Password must be at least 6 characters").required("Password is required"),
   role: Yup.mixed<"ATTENDEE" | "ORGANIZER">().oneOf(["ATTENDEE", "ORGANIZER"]).required(),
   referredByCode: Yup.string(),
 });
 
 const Register = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { register } = useAuth();
   const [submitError, setSubmitError] = useState("");
+
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
 
   const handleSubmit = async (
     values: RegisterFormValues,
@@ -59,10 +63,10 @@ const Register = () => {
         referredByCode: values.referredByCode || undefined,
       });
 
-      toast.success("Registrasi berhasil! Silakan login.");
-      navigate("/login");
+      toast.success("Registration successful! Please log in.");
+      navigate("/login", { state: location.state });
     } catch (err) {
-      setSubmitError(getErrorMessage(err, "Gagal melakukan registrasi."));
+      setSubmitError(getErrorMessage(err, "Failed to register."));
     } finally {
       setSubmitting(false);
     }
@@ -70,7 +74,24 @@ const Register = () => {
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center px-6 py-12">
-      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+      <Button
+        type="button"
+        variant="outline"
+        aria-label="Back"
+        onClick={() => navigate(from)}
+        className="mb-4 w-fit px-3 py-2 text-xs"
+      >
+        <ArrowLeft size={14} />
+        Back
+      </Button>
+
+      <img
+        src={logoFull}
+        alt="TechCon Logo"
+        className="mx-auto h-16 w-auto object-contain"
+      />
+
+      <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900">
         Create your account
       </h1>
       <p className="mt-2 text-sm text-slate-500">
@@ -160,7 +181,11 @@ const Register = () => {
 
       <p className="mt-6 text-center text-sm text-slate-500">
         Already have an account?{" "}
-        <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+        <Link
+          to="/login"
+          state={location.state}
+          className="font-semibold text-blue-600 hover:text-blue-700"
+        >
           Log in
         </Link>
       </p>

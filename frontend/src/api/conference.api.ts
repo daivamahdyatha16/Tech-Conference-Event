@@ -21,9 +21,22 @@ export interface CreateConferencePayload {
   endDate: string;
   isFree: boolean;
   categoryId: number;
-
+  thumbnail?: File;
 }
 
+const buildConferenceFormData = (
+  payload: Partial<CreateConferencePayload>,
+) => {
+  const formData = new FormData();
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    formData.append(key, value instanceof File ? value : String(value));
+  });
+
+  return formData;
+};
 
 export const getConferences = async (
   params?: ConferenceParams,
@@ -44,7 +57,11 @@ export const getConferenceById = async (id: number) => {
 export const createConference = async (
   payload: CreateConferencePayload,
 ): Promise<{ message: string; data: Conference }> => {
-  const { data } = await api.post("/conferences", payload);
+  const { data } = await api.post(
+    "/conferences",
+    buildConferenceFormData(payload),
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
 
   return data;
 };
@@ -55,7 +72,8 @@ export const updateConference = async (
 ) => {
   const { data } = await api.patch(
     `/conferences/${id}`,
-    payload,
+    buildConferenceFormData(payload),
+    { headers: { "Content-Type": "multipart/form-data" } },
   );
 
   return data;

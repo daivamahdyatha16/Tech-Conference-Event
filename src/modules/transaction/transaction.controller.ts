@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { TransactionService } from "./transaction.service";
 import { AppError } from "../../errors/AppError";
+import { createTransactionSchema } from "./transaction.validation";
 
 export class TransactionController {
   private transactionService = new TransactionService();
@@ -9,14 +10,32 @@ export class TransactionController {
     try {
       const userId = (req as any).user.id;
 
+      const dto = createTransactionSchema.parse(req.body);
+
       const result = await this.transactionService.create({
-        ...req.body,
+        ...dto,
         userId,
       });
 
       res.status(201).json({
         success: true,
-        message: "Berhasil membuat transaksi",
+        message: "Transaction created successfully",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async findMyTransactions(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user.id;
+
+      const result = await this.transactionService.findMyTransactions(userId);
+
+      res.status(200).json({
+        success: true,
+        message: "Transaction history retrieved successfully",
         data: result,
       });
     } catch (error) {
@@ -30,7 +49,7 @@ export class TransactionController {
       const userId = (req as any).user.id;
 
       if (!req.file) {
-        throw new AppError("Bukti pembayaran wajib diupload", 400);
+        throw new AppError("Payment proof is required", 400);
       }
 
       const result = await this.transactionService.uploadPaymentProof(
@@ -41,7 +60,7 @@ export class TransactionController {
 
       res.status(200).json({
         success: true,
-        message: "Berhasil upload bukti pembayaran",
+        message: "Payment proof uploaded successfully",
         data: result,
       });
     } catch (error) {
@@ -65,7 +84,7 @@ export class TransactionController {
 
     res.status(200).json({
       success: true,
-      message: "Transaksi berhasil disetujui",
+      message: "Transaction approved successfully",
       data: result,
     });
   } catch (error) {
@@ -89,7 +108,7 @@ async rejectTransaction(
 
     res.status(200).json({
       success: true,
-      message: "Transaksi berhasil ditolak",
+      message: "Transaction rejected successfully",
       data: result,
     });
   } catch (error) {
