@@ -255,7 +255,11 @@ const ConferenceDetail = () => {
       setPointsToUse("");
       refetchTicketTypes();
       refetchWallet();
-      navigate("/dashboard", { state: { tab: "WAITING_PAYMENT" } });
+      navigate("/dashboard", {
+        state: {
+          tab: response.data.status === "APPROVED" ? "APPROVED" : "WAITING_PAYMENT",
+        },
+      });
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to create transaction."));
     } finally {

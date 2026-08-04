@@ -8,6 +8,7 @@ export interface CreateConferenceDTO {
     isFree: boolean;
     categoryId: number;
     thumbnail?: string;
+    availableSeats?: number;
 }
 
 export interface UpdateConferenceDTO 

@@ -15,21 +15,29 @@ export const conferenceSchema = z.object({
       z.boolean(),
     ),
     categoryId: z.coerce.number().int().positive("Category is required"),
+    availableSeats: z.coerce.number().int().positive().optional(),
 
 });
-export const createConferenceSchema = conferenceSchema.refine(
-    (data) => data.endDate >= data.startDate,
+export const createConferenceSchema = conferenceSchema
+  .refine((data) => data.endDate >= data.startDate, {
+    message: "End date cannot be before start date",
+    path: ["endDate"],
+  })
+  .refine((data) => !data.isFree || data.availableSeats !== undefined, {
+    message: "Available seats is required for a free event",
+    path: ["availableSeats"],
+  });
+export const updateConferenceSchema = conferenceSchema
+  .partial()
+  .refine(
+    (data) =>
+      !data.startDate || !data.endDate || data.endDate >= data.startDate,
     {
       message: "End date cannot be before start date",
       path: ["endDate"],
     }
-  );
-export const updateConferenceSchema = conferenceSchema.partial().refine(
-  (data) => !data.startDate ||
-      !data.endDate ||
-      data.endDate >= data.startDate,
-    {
-      message: "End date cannot be before start date",
-      path: ["endDate"],
-    }
-  );
+  )
+  .refine((data) => !data.isFree || data.availableSeats !== undefined, {
+    message: "Available seats is required for a free event",
+    path: ["availableSeats"],
+  });

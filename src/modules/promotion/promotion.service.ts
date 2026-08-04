@@ -23,6 +23,13 @@ export class PromotionService {
       );
     }
 
+    if (conference.isFree) {
+      throw new AppError(
+        "A promotion cannot be created for a free event",
+        400,
+      );
+    }
+
     const existingPromotion = await prisma.promotion.findFirst({
       where: { conferenceId: dto.conferenceId },
     });
