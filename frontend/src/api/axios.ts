@@ -14,3 +14,24 @@ api.interceptors.request.use((config) => {
 
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const requestUrl: string = error.config?.url ?? "";
+    const isAuthEndpoint =
+      requestUrl.includes("/auth/login") || requestUrl.includes("/auth/register");
+    const hadStoredToken = !!localStorage.getItem("token");
+
+    if (error.response?.status === 401 && hadStoredToken && !isAuthEndpoint) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
