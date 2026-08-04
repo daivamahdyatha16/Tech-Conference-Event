@@ -1,12 +1,21 @@
-import "./index.css";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import LoginPage from "./pages/Login";
+import DashboardPage from "./pages/Dashboard";
+import ProtectedRoute from "./components/ProtectedRoute"; 
 
 function App() {
   return (
-    <div className="flex h-screen items-center justify-center bg-slate-900">
-      <h1 className="text-5xl font-bold text-white">
-        Tech Conference
-      </h1>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
   );
 }
 
