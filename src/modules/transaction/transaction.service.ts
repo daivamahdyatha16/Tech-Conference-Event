@@ -157,7 +157,13 @@ export class TransactionService {
           pointUsed: actualPointUsed,
           totalPrice,
           expiresAt,
-          status: TransactionStatus.WAITING_PAYMENT,
+          // A zero-price transaction (free event, or fully covered by
+          // coupon/points) has nothing to pay - skip the payment-proof step
+          // entirely and approve it immediately.
+          status:
+            totalPrice === 0
+              ? TransactionStatus.APPROVED
+              : TransactionStatus.WAITING_PAYMENT,
 
           user: {
             connect: {

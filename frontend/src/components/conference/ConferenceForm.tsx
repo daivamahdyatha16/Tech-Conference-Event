@@ -4,6 +4,7 @@ import { Formik, Form, Field, ErrorMessage, FieldArray } from "formik";
 import type { FormikHelpers } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import { useCategory } from "../../hooks/useCategory";
 import { createConference } from "../../api/conference.api";
@@ -38,6 +39,7 @@ interface CreateConferenceFormValues {
   startDate: string;
   endDate: string;
   isFree: boolean;
+  availableSeats: number | "";
   thumbnail: File | null;
   ticketTypes: TicketTypeFormValues[];
   promotions: PromotionFormValues[];
@@ -71,6 +73,7 @@ const initialValues: CreateConferenceFormValues = {
   startDate: "",
   endDate: "",
   isFree: false,
+  availableSeats: "",
   thumbnail: null,
   ticketTypes: [{ ...emptyTicketType }],
   promotions: [],
@@ -106,6 +109,16 @@ const validationSchema = Yup.object({
         return new Date(value) >= new Date(startDate);
       }
     ),
+  availableSeats: Yup.number().when("isFree", {
+    is: true,
+    then: (schema) =>
+      schema
+        .typeError("Available seats is required")
+        .integer("Available seats must be a whole number")
+        .min(1, "Available seats must be at least 1")
+        .required("Available seats is required"),
+    otherwise: (schema) => schema.notRequired(),
+  }),
   ticketTypes: Yup.array()
     .of(
       Yup.object({
@@ -122,7 +135,7 @@ const validationSchema = Yup.object({
           ),
         price: Yup.number()
           .typeError("Price is required")
-          .min(0, "Price cannot be negative")
+          .positive("Price must be greater than 0")
           .required("Price is required"),
         quota: Yup.number()
           .typeError("Quota is required")
@@ -131,7 +144,11 @@ const validationSchema = Yup.object({
           .required("Quota is required"),
       })
     )
-    .min(1, "Add at least one ticket type"),
+    .when("isFree", {
+      is: false,
+      then: (schema) => schema.min(1, "Add at least one ticket type"),
+      otherwise: (schema) => schema,
+    }),
   promotions: Yup.array()
     .max(1, "A conference can only have one promotion")
     .of(
@@ -195,6 +212,48 @@ const CreateConference = () => {
     });
   };
 
+  const handleIsFreeToggle = async (
+    checked: boolean,
+    values: CreateConferenceFormValues,
+    setFieldValue: (field: string, value: unknown) => void
+  ) => {
+    if (checked) {
+      const hasExistingData =
+        values.ticketTypes.some(
+          (ticketType) =>
+            ticketType.name.trim() !== "" ||
+            ticketType.description.trim() !== "" ||
+            ticketType.price !== "" ||
+            ticketType.quota !== ""
+        ) || values.promotions.length > 0;
+
+      if (hasExistingData) {
+        const confirmResult = await Swal.fire({
+          title: "Switch to Free Event?",
+          text: "Switching to a free event will remove the current ticket types and promotion.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Yes, switch",
+          cancelButtonText: "Cancel",
+          confirmButtonColor: "#2563eb",
+        });
+
+        if (!confirmResult.isConfirmed) return;
+      }
+
+      setFieldValue("isFree", true);
+      setFieldValue("ticketTypes", []);
+      setFieldValue("promotions", []);
+    } else {
+      setFieldValue("isFree", false);
+      setFieldValue("availableSeats", "");
+
+      if (values.ticketTypes.length === 0) {
+        setFieldValue("ticketTypes", [{ ...emptyTicketType }]);
+      }
+    }
+  };
+
   const handleSubmit = async (
   values: CreateConferenceFormValues,
   { setSubmitting, resetForm }: FormikHelpers<CreateConferenceFormValues>
@@ -210,32 +269,37 @@ const CreateConference = () => {
       isFree: values.isFree,
       categoryId: values.categoryId as number,
       thumbnail: values.thumbnail ?? undefined,
+      ...(values.isFree
+        ? { availableSeats: Number(values.availableSeats) }
+        : {}),
     });
 
-    await Promise.all(
-      values.ticketTypes.map((ticketType) =>
-        createTicketType(conference.id, {
-          name: ticketType.name,
-          description: ticketType.description || undefined,
-          price: Number(ticketType.price),
-          quota: Number(ticketType.quota),
-        })
-      )
-    );
+    if (!values.isFree) {
+      await Promise.all(
+        values.ticketTypes.map((ticketType) =>
+          createTicketType(conference.id, {
+            name: ticketType.name,
+            description: ticketType.description || undefined,
+            price: Number(ticketType.price),
+            quota: Number(ticketType.quota),
+          })
+        )
+      );
 
-    await Promise.all(
-      values.promotions.slice(0, 1).map((promotion) =>
-        createPromotion({
-          conferenceId: conference.id,
-          promotionType: "EVENT_PROMO",
-          discountType: promotion.discountType,
-          discountValue: Number(promotion.discountValue),
-          quota: promotion.quota === "" ? undefined : Number(promotion.quota),
-          startDate: promotion.startDate,
-          endDate: promotion.endDate,
-        })
-      )
-    );
+      await Promise.all(
+        values.promotions.slice(0, 1).map((promotion) =>
+          createPromotion({
+            conferenceId: conference.id,
+            promotionType: "EVENT_PROMO",
+            discountType: promotion.discountType,
+            discountValue: Number(promotion.discountValue),
+            quota: promotion.quota === "" ? undefined : Number(promotion.quota),
+            startDate: promotion.startDate,
+            endDate: promotion.endDate,
+          })
+        )
+      );
+    }
 
     toast.success("Conference created successfully!");
 
@@ -456,10 +520,14 @@ const CreateConference = () => {
                 </div>
 
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <Field
+                  <input
                     id="isFree"
                     name="isFree"
                     type="checkbox"
+                    checked={values.isFree}
+                    onChange={(e) =>
+                      handleIsFreeToggle(e.target.checked, values, setFieldValue)
+                    }
                     className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-blue-600"
                   />
                   <div>
@@ -476,8 +544,33 @@ const CreateConference = () => {
                   </div>
                 </div>
 
+                {values.isFree && (
+                  <div>
+                    <label htmlFor="availableSeats" className={labelClass}>
+                      Available Seats <span className="text-red-500">*</span>
+                    </label>
+                    <Field
+                      id="availableSeats"
+                      name="availableSeats"
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 100"
+                      className={inputClass}
+                    />
+                    <ErrorMessage
+                      name="availableSeats"
+                      component="p"
+                      className={errorClass}
+                    />
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      Total number of seats available for this free event.
+                    </p>
+                  </div>
+                )}
+
                 <hr className="border-slate-100" />
 
+                {!values.isFree && (
                 <FieldArray name="ticketTypes">
                   {({ push, remove }) => (
                     <div className="space-y-4">
@@ -616,9 +709,11 @@ const CreateConference = () => {
                     </div>
                   )}
                 </FieldArray>
+                )}
 
                 <hr className="border-slate-100" />
 
+                {!values.isFree && (
                 <FieldArray name="promotions">
                   {({ push, remove }) => (
                     <div className="space-y-4">
@@ -784,6 +879,7 @@ const CreateConference = () => {
                     </div>
                   )}
                 </FieldArray>
+                )}
 
                 <hr className="border-slate-100" />
 

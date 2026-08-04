@@ -22,6 +22,7 @@ export interface CreateConferencePayload {
   isFree: boolean;
   categoryId: number;
   thumbnail?: File;
+  availableSeats?: number;
 }
 
 const buildConferenceFormData = (

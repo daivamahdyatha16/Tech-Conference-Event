@@ -48,11 +48,14 @@ const AttendeeDashboard = () => {
     refetch: refetchTransactions,
   } = useMyTransactions();
 
-  const [activeTab, setActiveTab] = useState<TabKey>(() =>
-    (location.state as { tab?: string })?.tab === "WAITING_PAYMENT"
-      ? "transaction-status"
-      : "overview"
-  );
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    const initialTab = (location.state as { tab?: string })?.tab;
+
+    if (initialTab === "WAITING_PAYMENT") return "transaction-status";
+    if (initialTab === "APPROVED") return "history";
+
+    return "overview";
+  });
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("ALL");
 
   const transactionStatusItems = transactions.filter(

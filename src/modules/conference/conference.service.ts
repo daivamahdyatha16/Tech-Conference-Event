@@ -37,6 +37,30 @@ export class ConferenceService {
       },
     };
 
+    // Free events don't collect ticket types from the organizer, but the
+    // checkout flow still requires a ticketTypeId - a default "General
+    // Admission" ticket (price 0) is created atomically with the conference
+    // so a free event is never left without a way to be registered for.
+    if (dto.isFree) {
+      return prisma.$transaction(async (tx) => {
+        const conference = await tx.conference.create({ data });
+
+        await tx.ticketType.create({
+          data: {
+            name: "General Admission",
+            price: 0,
+            quota: dto.availableSeats as number,
+            availableSeat: dto.availableSeats as number,
+            conference: {
+              connect: { id: conference.id },
+            },
+          },
+        });
+
+        return conference;
+      });
+    }
+
     return this.conferenceRepository.create(data);
   }
 
@@ -80,6 +104,19 @@ export class ConferenceService {
         "You do not have permission to update this conference",
         403,
       );
+    }
+
+    if (dto.isFree === true && !conference.isFree) {
+      const transactionCount = await prisma.transaction.count({
+        where: { conferenceId: id },
+      });
+
+      if (transactionCount > 0) {
+        throw new AppError(
+          "This conference cannot be switched to a free event because it already has transactions",
+          400,
+        );
+      }
     }
 
     const data = {
