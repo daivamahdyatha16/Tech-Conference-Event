@@ -38,10 +38,20 @@ export interface Coupon {
   expiredAt: string;
 }
 
+export interface PointHistoryItem {
+  id: number | string;
+  type: "EARNED" | "REDEEMED" | "EXPIRED" | string;
+  amount: number;
+  description?: string;
+  createdAt: string;
+  expiredAt?: string | null;
+}
+
 export interface UserProfile extends AuthUser {
   createdAt: string;
   pointBalance: number;
   coupons: Coupon[];
+  pointHistory?: PointHistoryItem[];
 }
 
 export const login = async (

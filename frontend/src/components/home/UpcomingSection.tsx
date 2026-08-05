@@ -22,7 +22,7 @@ const UpcomingSection = () => {
             ? Array.from({ length: 3 }).map((_, index) => (
                 <ConferenceCardSkeleton key={index} />
               ))
-            : conferences
+            : (conferences || [])
                 .slice(0, 3)
                 .map((conference) => (
                   <ConferenceCard key={conference.id} conference={conference} />

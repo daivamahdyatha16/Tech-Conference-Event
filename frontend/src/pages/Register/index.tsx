@@ -1,194 +1,259 @@
-import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import type { FormikHelpers } from "formik";
-import * as Yup from "yup";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import toast from "react-hot-toast";
+import React, { useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import toast from 'react-hot-toast';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 
-import { useAuth } from "../../hooks/useAuth";
-import Button from "../../components/ui/Button";
-import Input from "../../components/ui/Input";
-import { getErrorMessage } from "../../utils/error";
-import logoFull from "../../assets/logo/logo.png";
+import { useAuth } from '../../hooks/useAuth';
+import logoFull from '../../assets/logo/logo.png';
 
-interface RegisterFormValues {
-  fullName: string;
-  email: string;
-  phoneNumber: string;
-  password: string;
-  role: "ATTENDEE" | "ORGANIZER";
-  referredByCode: string;
-}
-
-const initialValues: RegisterFormValues = {
-  fullName: "",
-  email: "",
-  phoneNumber: "",
-  password: "",
-  role: "ATTENDEE",
-  referredByCode: "",
-};
-
-const validationSchema = Yup.object({
-  fullName: Yup.string().min(2, "Full name must be at least 2 characters").required("Full name is required"),
-  email: Yup.string().email("Invalid email format").required("Email is required"),
-  phoneNumber: Yup.string().min(10, "Phone number must be at least 10 digits").required("Phone number is required"),
-  password: Yup.string().min(6, "Password must be at least 6 characters").required("Password is required"),
-  role: Yup.mixed<"ATTENDEE" | "ORGANIZER">().oneOf(["ATTENDEE", "ORGANIZER"]).required(),
-  referredByCode: Yup.string(),
+const registerSchema = Yup.object({
+  fullName: Yup.string().min(2, 'Full name must be at least 2 characters').required('Full name is required'),
+  email: Yup.string().email('Invalid email format').required('Email is required'),
+  phoneNumber: Yup.string()
+    .matches(/^[0-9]+$/, 'Phone number must contain numbers only')
+    .min(10, 'Phone number must be at least 10 digits')
+    .required('Phone number is required'),
+  role: Yup.string()
+    .oneOf(['ATTENDEE', 'ORGANIZER'], 'Invalid role selected')
+    .required('Please select an account type'),
+  password: Yup.string()
+    .min(6, 'Password must be at least 6 characters')
+    .required('Password is required'),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref('password')], 'Passwords must match')
+    .required('Please confirm your password'),
+  referralCode: Yup.string().optional(),
 });
 
-const Register = () => {
+const Register: React.FC = () => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { register } = useAuth();
-  const [submitError, setSubmitError] = useState("");
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
-  const handleSubmit = async (
-    values: RegisterFormValues,
-    { setSubmitting }: FormikHelpers<RegisterFormValues>,
-  ) => {
-    try {
-      setSubmitError("");
+  const formik = useFormik({
+    initialValues: {
+      fullName: '',
+      email: '',
+      phoneNumber: '',
+      role: 'ATTENDEE',
+      password: '',
+      confirmPassword: '',
+      referralCode: '',
+    },
+    validationSchema: registerSchema,
+    onSubmit: async (values, { setSubmitting }) => {
+      try {
+        setSubmitError('');
+        await register({
+          fullName: values.fullName,
+          email: values.email,
+          phoneNumber: values.phoneNumber,
+          password: values.password,
+          role: values.role as 'ATTENDEE' | 'ORGANIZER',
+          referredByCode: values.referralCode.trim() ? values.referralCode.trim() : undefined,
+        });
 
-      await register({
-        fullName: values.fullName,
-        email: values.email,
-        phoneNumber: values.phoneNumber,
-        password: values.password,
-        role: values.role,
-        referredByCode: values.referredByCode || undefined,
-      });
-
-      toast.success("Registration successful! Please log in.");
-      navigate("/login", { state: location.state });
-    } catch (err) {
-      setSubmitError(getErrorMessage(err, "Failed to register."));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+        toast.success('Registration successful! Please log in.');
+        navigate('/login', { state: location.state });
+      } catch (err: any) {
+        const msg = err.response?.data?.message || err.message || 'Failed to register account.';
+        setSubmitError(msg);
+        toast.error(msg);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+  });
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center px-6 py-12">
-      <Button
-        type="button"
-        variant="outline"
-        aria-label="Back"
-        onClick={() => navigate(from)}
-        className="mb-4 w-fit px-3 py-2 text-xs"
-      >
-        <ArrowLeft size={14} />
-        Back
-      </Button>
-
-      <img
-        src={logoFull}
-        alt="TechCon Logo"
-        className="mx-auto h-16 w-auto object-contain"
-      />
-
-      <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900">
-        Create your account
-      </h1>
-      <p className="mt-2 text-sm text-slate-500">
-        Join TechCon to discover and manage conferences.
-      </p>
-
-      <Formik
-        initialValues={initialValues}
-        validationSchema={validationSchema}
-        onSubmit={handleSubmit}
-      >
-        {({ isSubmitting }) => (
-          <Form className="mt-8 space-y-4">
-            {submitError && (
-              <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
-                {submitError}
-              </p>
-            )}
-
-            <div>
-              <label htmlFor="fullName" className="mb-1.5 block text-sm font-medium text-slate-700">
-                Full Name
-              </label>
-              <Field as={Input} id="fullName" name="fullName" placeholder="Jane Doe" />
-              <ErrorMessage name="fullName" component="p" className="mt-1 text-xs text-red-500" />
-            </div>
-
-            <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700">
-                Email
-              </label>
-              <Field as={Input} id="email" name="email" type="email" placeholder="jane@example.com" />
-              <ErrorMessage name="email" component="p" className="mt-1 text-xs text-red-500" />
-            </div>
-
-            <div>
-              <label htmlFor="phoneNumber" className="mb-1.5 block text-sm font-medium text-slate-700">
-                Phone Number
-              </label>
-              <Field as={Input} id="phoneNumber" name="phoneNumber" placeholder="08123456789" />
-              <ErrorMessage name="phoneNumber" component="p" className="mt-1 text-xs text-red-500" />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-700">
-                Password
-              </label>
-              <Field as={Input} id="password" name="password" type="password" placeholder="••••••••" />
-              <ErrorMessage name="password" component="p" className="mt-1 text-xs text-red-500" />
-            </div>
-
-            <div>
-              <label htmlFor="role" className="mb-1.5 block text-sm font-medium text-slate-700">
-                I want to
-              </label>
-              <Field
-                as="select"
-                id="role"
-                name="role"
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none transition-all duration-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-              >
-                <option value="ATTENDEE">Attend conferences</option>
-                <option value="ORGANIZER">Organize conferences</option>
-              </Field>
-            </div>
-
-            <div>
-              <label htmlFor="referredByCode" className="mb-1.5 block text-sm font-medium text-slate-700">
-                Referral Code (optional)
-              </label>
-              <Field as={Input} id="referredByCode" name="referredByCode" placeholder="REF-XXXXXX" />
-            </div>
-
-            <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                "Register"
-              )}
-            </Button>
-          </Form>
-        )}
-      </Formik>
-
-      <p className="mt-6 text-center text-sm text-slate-500">
-        Already have an account?{" "}
-        <Link
-          to="/login"
-          state={location.state}
-          className="font-semibold text-blue-600 hover:text-blue-700"
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-100 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
+        <button
+          type="button"
+          onClick={() => navigate(from)}
+          className="mb-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all"
         >
-          Log in
-        </Link>
-      </p>
+          <ArrowLeft size={14} /> Back
+        </button>
+
+        <div className="mb-6 text-center">
+          <img src={logoFull} alt="TechCon Logo" className="mx-auto h-12 w-auto object-contain mb-3" />
+          <h2 className="text-2xl font-bold text-slate-900">Create New Account</h2>
+          <p className="mt-1 text-sm text-slate-500">Choose your account type and complete the registration form</p>
+        </div>
+
+        {submitError && (
+          <div className="mb-4 rounded-xl bg-red-50 p-3 text-xs text-red-600 font-medium">
+            {submitError}
+          </div>
+        )}
+
+        <form onSubmit={formik.handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase text-slate-600">Account Type</label>
+            <div className="grid grid-cols-2 gap-3">
+              <label
+                className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border p-3 text-center transition-all ${
+                  formik.values.role === 'ATTENDEE'
+                    ? 'border-blue-600 bg-blue-50/50 text-blue-600 shadow-sm'
+                    : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:border-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value="ATTENDEE"
+                  checked={formik.values.role === 'ATTENDEE'}
+                  onChange={formik.handleChange}
+                  className="sr-only"
+                />
+                <span className="text-sm font-bold">Participant</span>
+                <span className="text-[10px] text-slate-500 mt-0.5">Discover & Buy Event Tickets</span>
+              </label>
+
+              <label
+                className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border p-3 text-center transition-all ${
+                  formik.values.role === 'ORGANIZER'
+                    ? 'border-blue-600 bg-blue-50/50 text-blue-600 shadow-sm'
+                    : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:border-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value="ORGANIZER"
+                  checked={formik.values.role === 'ORGANIZER'}
+                  onChange={formik.handleChange}
+                  className="sr-only"
+                />
+                <span className="text-sm font-bold">Event Organizer</span>
+                <span className="text-[10px] text-slate-500 mt-0.5">Create & Manage Events</span>
+              </label>
+            </div>
+            {formik.touched.role && formik.errors.role && (
+              <p className="mt-1 text-xs text-red-500">{formik.errors.role}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase text-slate-600">Full Name</label>
+            <input
+              type="text"
+              {...formik.getFieldProps('fullName')}
+              placeholder="Jane Doe"
+              className={`w-full rounded-xl border py-2.5 px-3.5 text-sm outline-none transition-all ${
+                formik.touched.fullName && formik.errors.fullName ? 'border-red-500 bg-red-50/30' : 'border-slate-200 bg-slate-50/50 focus:border-blue-500'
+              }`}
+            />
+            {formik.touched.fullName && formik.errors.fullName && <p className="mt-1 text-xs text-red-500">{formik.errors.fullName}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-slate-600">Email Address</label>
+              <input
+                type="email"
+                {...formik.getFieldProps('email')}
+                placeholder="jane@example.com"
+                className={`w-full rounded-xl border py-2.5 px-3.5 text-sm outline-none transition-all ${
+                  formik.touched.email && formik.errors.email ? 'border-red-500 bg-red-50/30' : 'border-slate-200 bg-slate-50/50 focus:border-blue-500'
+                }`}
+              />
+              {formik.touched.email && formik.errors.email && <p className="mt-1 text-xs text-red-500">{formik.errors.email}</p>}
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-slate-600">Phone Number</label>
+              <input
+                type="text"
+                {...formik.getFieldProps('phoneNumber')}
+                placeholder="081234567890"
+                className={`w-full rounded-xl border py-2.5 px-3.5 text-sm outline-none transition-all ${
+                  formik.touched.phoneNumber && formik.errors.phoneNumber ? 'border-red-500 bg-red-50/30' : 'border-slate-200 bg-slate-50/50 focus:border-blue-500'
+                }`}
+              />
+              {formik.touched.phoneNumber && formik.errors.phoneNumber && <p className="mt-1 text-xs text-red-500">{formik.errors.phoneNumber}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-slate-600">Password</label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                {...formik.getFieldProps('password')}
+                placeholder="••••••••"
+                className={`w-full rounded-xl border py-2.5 px-3.5 text-sm outline-none transition-all ${
+                  formik.touched.password && formik.errors.password ? 'border-red-500 bg-red-50/30' : 'border-slate-200 bg-slate-50/50 focus:border-blue-500'
+                }`}
+              />
+              {formik.touched.password && formik.errors.password && <p className="mt-1 text-xs text-red-500">{formik.errors.password}</p>}
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-slate-600">Confirm Password</label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                {...formik.getFieldProps('confirmPassword')}
+                placeholder="••••••••"
+                className={`w-full rounded-xl border py-2.5 px-3.5 text-sm outline-none transition-all ${
+                  formik.touched.confirmPassword && formik.errors.confirmPassword ? 'border-red-500 bg-red-50/30' : 'border-slate-200 bg-slate-50/50 focus:border-blue-500'
+                }`}
+              />
+              {formik.touched.confirmPassword && formik.errors.confirmPassword && <p className="mt-1 text-xs text-red-500">{formik.errors.confirmPassword}</p>}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onChange={() => setShowPassword(!showPassword)}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              Show Password
+            </label>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase text-slate-600">Referral Code (Optional)</label>
+            <input
+              type="text"
+              {...formik.getFieldProps('referralCode')}
+              placeholder="Enter friend's referral code (if any)"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 px-3.5 text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={formik.isSubmitting}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 disabled:opacity-60 cursor-pointer transition-all"
+          >
+            {formik.isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Registering...
+              </>
+            ) : (
+              'Register Now'
+            )}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-xs text-slate-500">
+          Already have an account?{' '}
+          <Link to="/login" state={location.state} className="font-semibold text-blue-600 hover:underline">
+            Log in here
+          </Link>
+        </p>
+      </div>
     </div>
   );
 };
