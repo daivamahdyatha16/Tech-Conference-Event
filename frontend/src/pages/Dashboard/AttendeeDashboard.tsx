@@ -58,7 +58,6 @@ const AttendeeDashboard = () => {
   });
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("ALL");
 
-  // State tambahan untuk modal QR E-Ticket
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
 
   const transactionStatusItems = transactions.filter(

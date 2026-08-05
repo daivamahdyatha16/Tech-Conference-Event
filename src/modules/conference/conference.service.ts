@@ -37,10 +37,7 @@ export class ConferenceService {
       },
     };
 
-    // Free events don't collect ticket types from the organizer, but the
-    // checkout flow still requires a ticketTypeId - a default "General
-    // Admission" ticket (price 0) is created atomically with the conference
-    // so a free event is never left without a way to be registered for.
+     
     if (dto.isFree) {
       return prisma.$transaction(async (tx) => {
         const conference = await tx.conference.create({ data });

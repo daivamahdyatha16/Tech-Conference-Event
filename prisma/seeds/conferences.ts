@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 export async function seedConferences() {
   console.log("🌱 Seeding conferences...");
 
-  // 1. Ambil data organizer dan category yang beneran ada di DB
   const organizers = await prisma.user.findMany({
     where: { role: "ORGANIZER" },
     select: { id: true },
@@ -20,12 +19,10 @@ export async function seedConferences() {
     return;
   }
 
-  // Petakan ID agar tidak hardcode
   const org1 = organizers[0]?.id || 1;
   const org2 = organizers[1]?.id || org1;
   const org3 = organizers[2]?.id || org1;
 
-  // Fungsi pembantu agar categoryId selalu terambil dari ID yang valid
   const getCatId = (index: number) => categories[index % categories.length].id;
 
   const conferences = [

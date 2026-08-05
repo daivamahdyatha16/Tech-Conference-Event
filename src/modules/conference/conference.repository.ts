@@ -24,7 +24,6 @@ export class ConferenceRepository {
   }
 
   async findAll(query: ConferenceQuery & { skip: number }) {
-    // GET /conferences is a public endpoint — only PUBLISHED conferences may appear.
     const where: Prisma.ConferenceWhereInput = {
       status: ConferenceStatus.PUBLISHED,
     };

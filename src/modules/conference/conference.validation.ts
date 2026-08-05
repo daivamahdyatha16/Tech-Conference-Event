@@ -7,9 +7,7 @@ export const conferenceSchema = z.object({
     venue: z.string().trim().min(1,"Venue is required").min(5, "Venue name must be at least 5 characters").max(150, "Venue name must be at most 150 characters"),
     startDate: z.coerce.date({message: "Invalid start date"}),
     endDate: z.coerce.date({message: "Invalid end date"}),
-    // Thumbnail upload requires multipart/form-data, where every field
-    // (including booleans) arrives as a string - coerce "true"/"false"
-    // instead of requiring a real boolean.
+    
     isFree: z.preprocess(
       (value) => (typeof value === "string" ? value === "true" : value),
       z.boolean(),

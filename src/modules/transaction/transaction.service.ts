@@ -1,4 +1,4 @@
-import { addHours, addMonths } from "date-fns"; // 👈 Tambahkan addMonths
+import { addHours, addMonths } from "date-fns"; 
 import {
   ConferenceStatus,
   TransactionStatus,
@@ -215,7 +215,7 @@ export class TransactionService {
             point: transaction.pointUsed,
             type: PointType.EARN,
             description: `Refund points from expired transaction #${transaction.id}`,
-            expiredAt: addMonths(new Date(), 3), // Poin refund aktif kembali 3 bulan
+            expiredAt: addMonths(new Date(), 3), 
           },
         });
       }

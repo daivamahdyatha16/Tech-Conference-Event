@@ -7,7 +7,6 @@ import ImagePlaceholder from "../ui/ImagePlaceholder";
 import ConferenceStatusBadge from "../conference/ConferenceStatusBadge";
 import { formatDateRange } from "../../utils/datetime";
 
-// Generic fallback shown when a conference has no uploaded thumbnail.
 import conferencePlaceholderImage from "../../assets/images/conference-placeholder.webp";
 
 interface ConferenceCardProps {

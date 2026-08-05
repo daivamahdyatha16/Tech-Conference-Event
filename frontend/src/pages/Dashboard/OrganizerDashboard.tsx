@@ -42,15 +42,12 @@ const OrganizerDashboard = () => {
   const [chartRange, setChartRange] = useState<ChartRange>("monthly");
   const [isExporting, setIsExporting] = useState(false);
 
-  // Filter Conference untuk Overview & Export CSV
   const [selectedConferenceId, setSelectedConferenceId] = useState<string>("");
 
-  // Search & Pagination State
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
-  // Modal State
   const [selectedEventForModal, setSelectedEventForModal] = useState<any | null>(null);
 
   const { stats, loading: statsLoading, refetch: refetchStats } = useDashboardStats();
@@ -65,7 +62,6 @@ const OrganizerDashboard = () => {
     refetchEvents();
   };
 
-  // Filter transaksi overview
   const filteredOverviewTransactions = useMemo(() => {
     if (!selectedConferenceId) return transactions;
     return transactions.filter(
@@ -73,7 +69,6 @@ const OrganizerDashboard = () => {
     );
   }, [transactions, selectedConferenceId]);
 
-  // Kalkulasi stats dinamis
   const overviewStats = useMemo(() => {
     const approved = filteredOverviewTransactions.filter((t) => t.status === "APPROVED");
     const totalTicketsSold = approved.reduce((sum, t) => sum + (t.quantity || 1), 0);
@@ -87,7 +82,6 @@ const OrganizerDashboard = () => {
     };
   }, [filteredOverviewTransactions, selectedConferenceId, stats]);
 
-  // Export CSV Handler
   const handleExportCsv = () => {
     setIsExporting(true);
     try {
@@ -149,7 +143,6 @@ const OrganizerDashboard = () => {
     [transactions]
   );
 
-  // Dynamic Chart Data
   const chartData = useMemo(() => {
     const approvedTransactions = filteredOverviewTransactions.filter((t) => t.status === "APPROVED");
 

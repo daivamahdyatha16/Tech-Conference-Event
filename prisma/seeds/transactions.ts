@@ -5,12 +5,10 @@ const prisma = new PrismaClient();
 export async function seedTransactions() {
   console.log("🌱 Seeding transactions...");
 
-  // 1. Cari user ATTENDEE manapun yang ada di DB (bisa user hasil register-mu)
   const attendee = await prisma.user.findFirst({
     where: { role: UserRole.ATTENDEE },
   });
 
-  // 2. Cari conference manapun yang ada di DB
   const conference = await prisma.conference.findFirst();
 
   if (!attendee || !conference) {
@@ -18,7 +16,6 @@ export async function seedTransactions() {
     return;
   }
 
-  // 3. Cari ticketType milik conference tersebut
   const ticketType = await prisma.ticketType.findFirst({
     where: { conferenceId: conference.id },
   });
@@ -28,7 +25,6 @@ export async function seedTransactions() {
     return;
   }
 
-  // 4. Buat transaksi dummy berstatus APPROVED
   await prisma.transaction.createMany({
     data: [
       {

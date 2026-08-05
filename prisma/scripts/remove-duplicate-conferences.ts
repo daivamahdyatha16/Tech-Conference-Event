@@ -158,8 +158,7 @@ async function main() {
         console.log(`  ✓ Deleted id=${duplicateId}.`);
         deletedCount++;
       } catch (error) {
-        // Foreign key still restricts the delete (e.g. a row was created
-        // between the check above and this call) — skip, don't crash.
+       
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === "P2003"

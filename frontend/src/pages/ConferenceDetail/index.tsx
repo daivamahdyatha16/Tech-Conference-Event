@@ -4,6 +4,7 @@ import {
   MapPin,
   CalendarDays,
   Building2,
+  Ticket,
   User,
   Star,
   Minus,
@@ -32,7 +33,6 @@ import Skeleton from "../../components/ui/Skeleton";
 import ImagePlaceholder from "../../components/ui/ImagePlaceholder";
 import ConferenceStatusBadge from "../../components/conference/ConferenceStatusBadge";
 
-// Generic fallback shown when a conference has no uploaded thumbnail.
 import conferencePlaceholderImage from "../../assets/images/conference-placeholder.webp";
 
 const StarRating = ({
@@ -117,10 +117,6 @@ const ConferenceDetail = () => {
 
   const canWriteReview = !reviewGateMessage;
 
-  // Organizers manage events, they don't buy tickets - not even their own
-  // conference's, per business rule. The whole checkout flow is hidden for
-  // them, not just the buy button (backend also enforces this, see
-  // POST /transactions roleMiddleware(["ATTENDEE"])).
   const isOrganizer = user?.role === "ORGANIZER";
 
   const selectedTicketType = ticketTypes.find(
@@ -135,9 +131,7 @@ const ConferenceDetail = () => {
     (coupon) => coupon.id === selectedCouponId
   );
 
-  // Mirrors the backend's calculation order exactly (ticket price ->
-  // promotion -> coupon -> point) purely for display - the server response
-  // after checkout remains the authoritative final price.
+  
   const promotionDiscount = promotion
     ? promotion.discountType === "PERCENTAGE"
       ? (totalPayment * promotion.discountValue) / 100
@@ -198,24 +192,24 @@ const ConferenceDetail = () => {
     }
 
     if (!selectedTicketType) {
-      toast.error("Please select a ticket type first.");
+      toast.error("Pilih jenis tiket terlebih dahulu.");
       return;
     }
 
     if (quantity < 1 || quantity > selectedTicketType.availableSeat) {
-      toast.error("Invalid ticket quantity.");
+      toast.error("Jumlah tiket tidak valid.");
       return;
     }
 
     const confirmResult = await Swal.fire({
-      title: "Buy this ticket?",
+      title: "Beli tiket ini?",
       text: `${selectedTicketType.name} × ${quantity} — ${
-        conference?.isFree ? "Free" : formatIDR(estimatedTotal)
+        conference?.isFree ? "Gratis" : formatIDR(estimatedTotal)
       }`,
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: "Yes, buy",
-      cancelButtonText: "Cancel",
+      confirmButtonText: "Ya, beli",
+      cancelButtonText: "Batal",
       confirmButtonColor: "#2563eb",
     });
 
@@ -234,18 +228,18 @@ const ConferenceDetail = () => {
       });
 
       if (conference?.isFree) {
-        toast.success("Ticket obtained successfully! Your transaction has been recorded.");
+        toast.success("Tiket berhasil didapatkan! Transaksi kamu sudah tercatat.");
       } else {
         const expiresAt = new Date(response.data.expiresAt).toLocaleString(
           "id-ID"
         );
 
         toast.success(
-          `Transaction created successfully. Discount: ${formatIDR(
+          `Transaksi berhasil dibuat. Diskon: ${formatIDR(
             response.data.discount
-          )}. Total payment: ${formatIDR(
+          )}. Total pembayaran: ${formatIDR(
             response.data.totalPrice
-          )}. Complete payment before ${expiresAt}.`
+          )}. Selesaikan sebelum ${expiresAt}.`
         );
       }
 
@@ -255,13 +249,9 @@ const ConferenceDetail = () => {
       setPointsToUse("");
       refetchTicketTypes();
       refetchWallet();
-      navigate("/dashboard", {
-        state: {
-          tab: response.data.status === "APPROVED" ? "APPROVED" : "WAITING_PAYMENT",
-        },
-      });
+      navigate("/dashboard", { state: { tab: "WAITING_PAYMENT" } });
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to create transaction."));
+      toast.error(getErrorMessage(err, "Gagal membuat transaksi."));
     } finally {
       setSubmitting(false);
     }
@@ -271,12 +261,12 @@ const ConferenceDetail = () => {
     e.preventDefault();
 
     if (rating < 1) {
-      toast.error("Please select a rating first.");
+      toast.error("Pilih rating terlebih dahulu.");
       return;
     }
 
     if (!comment.trim()) {
-      toast.error("Comment cannot be empty.");
+      toast.error("Komentar tidak boleh kosong.");
       return;
     }
 
@@ -292,9 +282,9 @@ const ConferenceDetail = () => {
       setRating(0);
       setComment("");
       refetchReviews();
-      toast.success("Review submitted successfully!");
+      toast.success("Review berhasil dikirim!");
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to submit review."));
+      toast.error(getErrorMessage(err, "Gagal mengirim review."));
     } finally {
       setSubmittingReview(false);
     }
@@ -406,6 +396,24 @@ const ConferenceDetail = () => {
                 </p>
                 <p className="font-semibold text-slate-900">
                   {formatDateRange(conference.startDate, conference.endDate)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                <Ticket size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Price
+                </p>
+                <p className="font-semibold">
+                  {conference.isFree ? (
+                    <span className="text-emerald-600">Free</span>
+                  ) : (
+                    <span className="text-amber-600">Paid Event</span>
+                  )}
                 </p>
               </div>
             </div>

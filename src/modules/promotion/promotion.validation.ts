@@ -1,9 +1,6 @@
 import { DiscountType, PromotionType } from "@prisma/client";
 import { z } from "zod";
 
-// Promo form only ever collects plain dates (no time-of-day) - endDate is
-// pushed to the end of that day so a promotion is active for the whole day
-// it's set to end on, not just its first midnight instant.
 const toEndOfDay = (date: Date) => {
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
