@@ -3,9 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import type { FormikHelpers } from "formik";
 import * as Yup from "yup";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
-
 import { useAuth } from "../../hooks/useAuth";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -32,6 +31,7 @@ const Login = () => {
   const location = useLocation();
   const { login } = useAuth();
   const [submitError, setSubmitError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const from = (location.state as { from?: Location })?.from?.pathname || "/";
 
@@ -104,7 +104,25 @@ const Login = () => {
               <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-700">
                 Password
               </label>
-              <Field as={Input} id="password" name="password" type="password" placeholder="••••••••" />
+              <div className="relative">
+                <Field
+                  as={Input}
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"} //
+                  placeholder="••••••••"
+                  className="pr-10" //
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               <ErrorMessage name="password" component="p" className="mt-1 text-xs text-red-500" />
             </div>
 

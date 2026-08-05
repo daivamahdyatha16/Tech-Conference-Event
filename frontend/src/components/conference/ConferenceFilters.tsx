@@ -39,7 +39,7 @@ const ConferenceFilter = ({
       >
         <option value="">All Categories</option>
 
-        {categories.map((category) => (
+        {(categories || []).map((category) => (
           <option
             key={category.id}
             value={category.id}
@@ -56,7 +56,7 @@ const ConferenceFilter = ({
       >
         <option value="">All Cities</option>
 
-        {cities.map((cityOption) => (
+        {(cities || []).map((cityOption) => (
           <option key={cityOption} value={cityOption}>
             {cityOption}
           </option>

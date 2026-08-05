@@ -61,3 +61,17 @@ export const getOrganizerTransactions = async (): Promise<{
 
   return data;
 };
+
+
+export const exportTransactionCsvApi = async (
+  conferenceId?: string | number
+): Promise<Blob> => {
+  const { data } = await api.get("/dashboard/transactions/export", {
+    params: { 
+      conferenceId: conferenceId || undefined
+    },
+    responseType: "blob",
+  });
+
+  return data;
+};

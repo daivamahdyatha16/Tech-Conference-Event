@@ -1,4 +1,4 @@
-import { addHours } from "date-fns";
+import { addHours, addMonths } from "date-fns"; // 👈 Tambahkan addMonths
 import {
   ConferenceStatus,
   TransactionStatus,
@@ -55,9 +55,6 @@ export class TransactionService {
 
       const now = new Date();
 
-      // A conference can only have one promotion (business rule), so there's
-      // no selection logic needed - the promo is applied automatically, with
-      // no code, since it isn't tied to a specific attendee, unlike a referral coupon.
       const promotion = await tx.promotion.findFirst({
         where: {
           conferenceId: conference.id,
@@ -133,9 +130,6 @@ export class TransactionService {
 
         actualPointUsed = Math.min(pointUsed, remainingPriceAfterCoupon);
 
-        // A REDEEM row is a permanent balance deduction, not an earnable
-        // point that can expire - expiredAt is left null so it still counts
-        // toward the balance query at any time, not just when this row is created.
         await tx.pointHistory.create({
           data: {
             userId,
@@ -157,30 +151,21 @@ export class TransactionService {
           pointUsed: actualPointUsed,
           totalPrice,
           expiresAt,
-          // A zero-price transaction (free event, or fully covered by
-          // coupon/points) has nothing to pay - skip the payment-proof step
-          // entirely and approve it immediately.
           status:
             totalPrice === 0
               ? TransactionStatus.APPROVED
               : TransactionStatus.WAITING_PAYMENT,
 
           user: {
-            connect: {
-              id: userId,
-            },
+            connect: { id: userId },
           },
 
           conference: {
-            connect: {
-              id: conference.id,
-            },
+            connect: { id: conference.id },
           },
 
           ticketType: {
-            connect: {
-              id: ticketType.id,
-            },
+            connect: { id: ticketType.id },
           },
 
           ...(couponId && {
@@ -191,15 +176,10 @@ export class TransactionService {
         },
       });
 
-
       await tx.ticketType.update({
-        where: {
-          id: ticketType.id,
-        },
+        where: { id: ticketType.id },
         data: {
-          availableSeat: {
-            decrement: quantity,
-          },
+          availableSeat: { decrement: quantity },
         },
       });
 
@@ -209,9 +189,6 @@ export class TransactionService {
     return transaction;
   }
 
-  // There is no EXPIRED status in the schema - a WAITING_PAYMENT transaction
-  // past its expiresAt is set to CANCELLED (the frontend displays it as
-  // "Expired"). Checked lazily (on read), not via a cron/background job.
   async expireTransactionIfDue(transactionId: number) {
     return prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.findUnique({
@@ -230,6 +207,25 @@ export class TransactionService {
         where: { id: transaction.ticketTypeId },
         data: { availableSeat: { increment: transaction.quantity } },
       });
+
+      if (transaction.pointUsed > 0) {
+        await tx.pointHistory.create({
+          data: {
+            userId: transaction.userId,
+            point: transaction.pointUsed,
+            type: PointType.EARN,
+            description: `Refund points from expired transaction #${transaction.id}`,
+            expiredAt: addMonths(new Date(), 3), // Poin refund aktif kembali 3 bulan
+          },
+        });
+      }
+
+      if (transaction.couponId) {
+        await tx.coupon.update({
+          where: { id: transaction.couponId },
+          data: { isUsed: false },
+        });
+      }
 
       return tx.transaction.update({
         where: { id: transactionId },
@@ -344,6 +340,25 @@ export class TransactionService {
           },
         },
       });
+
+      if (transaction.pointUsed > 0) {
+        await tx.pointHistory.create({
+          data: {
+            userId: transaction.userId,
+            point: transaction.pointUsed,
+            type: PointType.EARN,
+            description: `Refund points from rejected transaction #${transaction.id}`,
+            expiredAt: addMonths(new Date(), 3),
+          },
+        });
+      }
+
+      if (transaction.couponId) {
+        await tx.coupon.update({
+          where: { id: transaction.couponId },
+          data: { isUsed: false },
+        });
+      }
 
       return await tx.transaction.update({
         where: {

@@ -84,17 +84,19 @@ const Conference = () => {
             <ConferenceCardSkeleton key={index} />
           ))}
         </div>
-      ) : conferences.length === 0 ? (
+      ) : (conferences || []).length === 0 ? (
         <ConferenceEmpty />
       ) : (
-        <ConferenceGrid conferences={conferences} />
+        <ConferenceGrid conferences={conferences || []} />
       )}
 
-      <ConferencePagination
-        page={page}
-        totalPage={meta.totalPage}
-        onPageChange={setPage}
-      />
+      {meta && (
+        <ConferencePagination
+          page={page}
+          totalPage={meta.totalPage || 1}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   );
 };
