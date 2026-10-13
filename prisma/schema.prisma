@@ -90,6 +90,7 @@ model Promotion {
   startDate     DateTime      @map("start_date")
   endDate       DateTime      @map("end_date")
   conference    Conference    @relation(fields: [conferenceId], references: [id])
+  transactions  Transaction[]
 
   @@map("promotions")
 }
@@ -155,6 +156,7 @@ model Transaction {
   conferenceId     Int               @map("conference_id")
   ticketTypeId     Int               @map("ticket_type_id")
   couponId         Int?              @map("coupon_id")
+  promotionId      Int?              @map("promotion_id")
   quantity         Int
   subtotal         Float
   discount         Float             @default(0)
@@ -167,6 +169,7 @@ model Transaction {
   createdAt        DateTime          @default(now()) @map("created_at")
   conference       Conference        @relation(fields: [conferenceId], references: [id])
   coupon           Coupon?           @relation(fields: [couponId], references: [id])
+  promotion        Promotion?        @relation(fields: [promotionId], references: [id])
   ticketType       TicketType        @relation(fields: [ticketTypeId], references: [id])
   user             User              @relation(fields: [userId], references: [id])
   pointRedemptions PointRedemption[]
@@ -210,6 +213,7 @@ enum DiscountType {
 
 enum PointSource {
   REFERRAL
+  REFUND
 }
 
 enum PointType {

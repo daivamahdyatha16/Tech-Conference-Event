@@ -125,6 +125,37 @@ export class PointService {
     return total;
   }
 
+  static async refundLegacy(
+    tx: Tx,
+    userId: number,
+    transactionId: number,
+    amount: number,
+    now: Date,
+  ) {
+    const expiredAt = getPointExpiry(now);
+
+    await tx.pointBatch.create({
+      data: {
+        userId,
+        source: PointSource.REFUND,
+        amount,
+        remaining: amount,
+        earnedAt: now,
+        expiredAt,
+      },
+    });
+
+    await tx.pointHistory.create({
+      data: {
+        userId,
+        point: amount,
+        type: PointType.EARN,
+        description: `Points refunded from transaction #${transactionId}`,
+        expiredAt,
+      },
+    });
+  }
+
   static async getBalance(
     userId: number,
     now = new Date(),

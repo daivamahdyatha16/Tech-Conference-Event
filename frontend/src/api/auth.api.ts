@@ -49,7 +49,7 @@ export interface PointHistoryItem {
 
 export interface PointBatch {
   id: number;
-  source: "REFERRAL";
+  source: "REFERRAL" | "REFUND";
   amount: number;
   remaining: number;
   earnedAt: string;

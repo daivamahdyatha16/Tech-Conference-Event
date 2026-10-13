@@ -72,6 +72,7 @@ export class TransactionService {
       });
 
       let promotionRule: DiscountRule = null;
+      let appliedPromotionId: number | null = null;
       if (promotion) {
         const promotionClaim = await tx.promotion.updateMany({
           where: {
@@ -84,6 +85,7 @@ export class TransactionService {
         });
 
         if (promotionClaim.count > 0) {
+          appliedPromotionId = promotion.id;
           promotionRule = {
             type: promotion.discountType,
             value: promotion.discountValue,
@@ -160,6 +162,9 @@ export class TransactionService {
           conference: { connect: { id: conference.id } },
           ticketType: { connect: { id: ticketType.id } },
           ...(couponId && { coupon: { connect: { id: couponId } } }),
+          ...(appliedPromotionId && {
+            promotion: { connect: { id: appliedPromotionId } },
+          }),
         },
       });
 
@@ -179,9 +184,12 @@ export class TransactionService {
     tx: Prisma.TransactionClient,
     transaction: {
       id: number;
+      userId: number;
       ticketTypeId: number;
       quantity: number;
       couponId: number | null;
+      promotionId: number | null;
+      pointUsed: number;
     },
     now: Date,
   ) {
@@ -190,12 +198,28 @@ export class TransactionService {
       data: { availableSeat: { increment: transaction.quantity } },
     });
 
-    await PointService.refund(tx, transaction.id, now);
+    const refunded = await PointService.refund(tx, transaction.id, now);
+    if (refunded === 0 && transaction.pointUsed > 0) {
+      await PointService.refundLegacy(
+        tx,
+        transaction.userId,
+        transaction.id,
+        transaction.pointUsed,
+        now,
+      );
+    }
 
     if (transaction.couponId) {
       await tx.coupon.update({
         where: { id: transaction.couponId },
         data: { isUsed: false, usedAt: null },
+      });
+    }
+
+    if (transaction.promotionId) {
+      await tx.promotion.updateMany({
+        where: { id: transaction.promotionId, usageCount: { gt: 0 } },
+        data: { usageCount: { decrement: 1 } },
       });
     }
   }

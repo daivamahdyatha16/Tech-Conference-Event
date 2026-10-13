@@ -1,5 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { TransactionStatus } from "@prisma/client";
+import {
+  DiscountType,
+  PromotionType,
+  TransactionStatus,
+} from "@prisma/client";
 import { prisma } from "../../configs/prisma";
 import { TransactionService } from "./transaction.service";
 import { PointService } from "../point/point.service";
@@ -331,5 +335,111 @@ describe.skipIf(!hasTestDatabase)("TransactionService pembatalan", () => {
       service.uploadPaymentProof(ctx.trx.id, "proof.jpg", ctx.attendee.id),
     ).rejects.toMatchObject({ statusCode: 400 });
     await expectFullyRestored(ctx);
+  });
+
+  it("kuota promo dikembalikan saat transaksi expired", async () => {
+    const { attendee, conference, ticketType } = await createCheckoutFixture();
+    const promotion = await prisma.promotion.create({
+      data: {
+        conferenceId: conference.id,
+        promotionType: PromotionType.EVENT_PROMO,
+        discountType: DiscountType.NOMINAL,
+        discountValue: 50_000,
+        quota: 1,
+        startDate: new Date(Date.now() - DAY),
+        endDate: inDays(10),
+      },
+    });
+
+    const trx = await service.create({
+      userId: attendee.id,
+      ticketTypeId: ticketType.id,
+      quantity: 1,
+    });
+    expect(trx.promotionId).toBe(promotion.id);
+    expect(trx.discount).toBe(50_000);
+
+    await forceExpire(trx.id);
+    await Promise.all([
+      service.expireTransactionIfDue(trx.id),
+      service.expireTransactionIfDue(trx.id),
+    ]);
+
+    const stored = await prisma.promotion.findUniqueOrThrow({
+      where: { id: promotion.id },
+    });
+    expect(stored.usageCount).toBe(0);
+
+    const next = await service.create({
+      userId: attendee.id,
+      ticketTypeId: ticketType.id,
+      quantity: 1,
+    });
+    expect(next.discount).toBe(50_000);
+  });
+
+  it("transaksi tanpa promo tidak mengubah kuota promo", async () => {
+    const { attendee, conference, ticketType } = await createCheckoutFixture();
+    const promotion = await prisma.promotion.create({
+      data: {
+        conferenceId: conference.id,
+        promotionType: PromotionType.EVENT_PROMO,
+        discountType: DiscountType.NOMINAL,
+        discountValue: 50_000,
+        quota: 1,
+        usageCount: 1,
+        startDate: new Date(Date.now() - DAY),
+        endDate: inDays(10),
+      },
+    });
+
+    const trx = await service.create({
+      userId: attendee.id,
+      ticketTypeId: ticketType.id,
+      quantity: 1,
+    });
+    expect(trx.promotionId).toBeNull();
+    expect(trx.discount).toBe(0);
+
+    await forceExpire(trx.id);
+    await service.expireTransactionIfDue(trx.id);
+
+    const stored = await prisma.promotion.findUniqueOrThrow({
+      where: { id: promotion.id },
+    });
+    expect(stored.usageCount).toBe(1);
+  });
+
+  it("transaksi lama tanpa catatan redemption tetap mendapat refund poin sekali", async () => {
+    const { attendee, conference, ticketType } = await createCheckoutFixture();
+    const legacy = await prisma.transaction.create({
+      data: {
+        userId: attendee.id,
+        conferenceId: conference.id,
+        ticketTypeId: ticketType.id,
+        quantity: 1,
+        subtotal: 300_000,
+        pointUsed: 6_000,
+        totalPrice: 294_000,
+        status: TransactionStatus.WAITING_PAYMENT,
+        expiresAt: new Date(Date.now() - 1000),
+      },
+    });
+
+    await Promise.all([
+      service.expireTransactionIfDue(legacy.id),
+      service.expireTransactionIfDue(legacy.id),
+    ]);
+
+    const batches = await prisma.pointBatch.findMany({
+      where: { userId: attendee.id },
+    });
+    expect(batches).toHaveLength(1);
+    expect(batches[0]).toMatchObject({
+      source: "REFUND",
+      amount: 6_000,
+      remaining: 6_000,
+    });
+    expect(await PointService.getBalance(attendee.id)).toBe(6_000);
   });
 });
