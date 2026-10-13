@@ -39,19 +39,29 @@ export interface Coupon {
 }
 
 export interface PointHistoryItem {
-  id: number | string;
-  type: "EARNED" | "REDEEMED" | "EXPIRED" | string;
-  amount: number;
-  description?: string;
+  id: number;
+  point: number;
+  type: "EARN" | "REDEEM";
+  description?: string | null;
   createdAt: string;
   expiredAt?: string | null;
+}
+
+export interface PointBatch {
+  id: number;
+  source: "REFERRAL";
+  amount: number;
+  remaining: number;
+  earnedAt: string;
+  expiredAt: string;
 }
 
 export interface UserProfile extends AuthUser {
   createdAt: string;
   pointBalance: number;
+  pointBatches: PointBatch[];
   coupons: Coupon[];
-  pointHistory?: PointHistoryItem[];
+  pointHistory: PointHistoryItem[];
 }
 
 export const login = async (

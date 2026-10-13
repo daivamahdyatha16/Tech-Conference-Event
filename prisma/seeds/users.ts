@@ -14,7 +14,6 @@ export async function seedUsers() {
         email: "contact@nusantaratech.id",
         password,
         role: UserRole.ORGANIZER,
-        referralCode: "NUSA2026",
         phoneNumber: "081111111111",
       },
       {
@@ -22,7 +21,6 @@ export async function seedUsers() {
         email: "hello@garudadigital.id",
         password,
         role: UserRole.ORGANIZER,
-        referralCode: "GARUDA26",
         phoneNumber: "082222222222",
       },
       {
@@ -30,7 +28,6 @@ export async function seedUsers() {
         email: "info@inovasitech.id",
         password,
         role: UserRole.ORGANIZER,
-        referralCode: "INOTECH26",
         phoneNumber: "083333333333",
       },
 
@@ -66,8 +63,28 @@ export async function seedUsers() {
         referralCode: "DEWI001",
         phoneNumber: "084567890123",
       },
+      {
+        fullName: "Eka Putri",
+        email: "eka.putri@mail.com",
+        password,
+        role: UserRole.ATTENDEE,
+        referralCode: "EKA001",
+        phoneNumber: "085678901234",
+      },
     ],
     skipDuplicates: true,
+  });
+
+  const andi = await prisma.user.findUniqueOrThrow({
+    where: { email: "andi.pratama@mail.com" },
+  });
+
+  await prisma.user.updateMany({
+    where: {
+      email: { in: ["budi.santoso@mail.com", "eka.putri@mail.com"] },
+      referredById: null,
+    },
+    data: { referredById: andi.id },
   });
 
   console.log("✅ Users seeded.");

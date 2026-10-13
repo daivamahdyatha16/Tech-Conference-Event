@@ -176,8 +176,56 @@ const ConferenceDetail = () => {
     const parsed = Number(rawValue);
     if (Number.isNaN(parsed)) return;
 
-    const maxUsablePoints = Math.min(pointBalance, totalPayment);
+    const maxUsablePoints = Math.min(pointBalance, afterCoupon);
     setPointsToUse(Math.max(0, Math.min(parsed, maxUsablePoints)));
+  };
+
+  const buildCheckoutSummary = () => {
+    const container = document.createElement("div");
+    container.className = "space-y-1 text-left text-sm";
+
+    const addRow = (label: string, value: string, bold = false) => {
+      const row = document.createElement("div");
+      row.className = `flex justify-between gap-4${bold ? " font-semibold border-t pt-2 mt-2" : ""}`;
+      const labelEl = document.createElement("span");
+      labelEl.textContent = label;
+      const valueEl = document.createElement("span");
+      valueEl.textContent = value;
+      row.append(labelEl, valueEl);
+      container.append(row);
+    };
+
+    if (!selectedTicketType) return container;
+
+    if (conference?.isFree) {
+      addRow(`${selectedTicketType.name} × ${quantity}`, "Gratis", true);
+      return container;
+    }
+
+    addRow(`${selectedTicketType.name} × ${quantity}`, formatIDR(totalPayment));
+    if (promotionDiscount > 0) {
+      addRow("Promo", `-${formatIDR(promotionDiscount)}`);
+    }
+    if (selectedCoupon && couponDiscount > 0) {
+      addRow("Kupon referral", `-${formatIDR(couponDiscount)}`);
+    }
+    if (appliedPoints > 0) {
+      addRow(
+        `Poin (${appliedPoints.toLocaleString("id-ID")})`,
+        `-${formatIDR(appliedPoints)}`,
+      );
+    }
+    addRow("Total", formatIDR(estimatedTotal), true);
+
+    if (selectedCoupon || appliedPoints > 0) {
+      const note = document.createElement("p");
+      note.className = "mt-3 text-xs text-slate-500";
+      note.textContent =
+        "Kupon dan poin akan langsung terpakai, dan dikembalikan jika transaksi dibatalkan, kedaluwarsa, atau ditolak.";
+      container.append(note);
+    }
+
+    return container;
   };
 
   const handleBuyTicket = async () => {
@@ -203,9 +251,7 @@ const ConferenceDetail = () => {
 
     const confirmResult = await Swal.fire({
       title: "Beli tiket ini?",
-      text: `${selectedTicketType.name} × ${quantity} — ${
-        conference?.isFree ? "Gratis" : formatIDR(estimatedTotal)
-      }`,
+      html: buildCheckoutSummary(),
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Ya, beli",
@@ -757,7 +803,7 @@ const ConferenceDetail = () => {
                               id="pointsToUse"
                               type="number"
                               min={0}
-                              max={Math.min(pointBalance, totalPayment)}
+                              max={Math.min(pointBalance, afterCoupon)}
                               value={pointsToUse}
                               onChange={(e) =>
                                 handlePointsChange(e.target.value)

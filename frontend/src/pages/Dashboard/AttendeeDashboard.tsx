@@ -37,11 +37,36 @@ const EmptyState = ({ message }: { message: string }) => (
   </div>
 );
 
+const formatShortDate = (value: string) =>
+  new Date(value).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+const getBatchStatus = (batch: { remaining: number; expiredAt: string }) => {
+  if (new Date(batch.expiredAt) <= new Date()) {
+    return { label: "Expired", className: "bg-rose-100 text-rose-700" };
+  }
+  if (batch.remaining === 0) {
+    return { label: "Used", className: "bg-slate-100 text-slate-600" };
+  }
+  return { label: "Active", className: "bg-emerald-100 text-emerald-700" };
+};
+
 const AttendeeDashboard = () => {
   const location = useLocation();
   const { user } = useAuth();
-  const { pointBalance, coupons, pointHistory = [] } = useWallet();
-  
+  const {
+    pointBalance,
+    pointBatches,
+    coupons,
+    pointHistory,
+    loading: walletLoading,
+    error: walletError,
+    refetch: refetchWallet,
+  } = useWallet();
+
   const {
     transactions,
     loading,
@@ -168,145 +193,186 @@ const AttendeeDashboard = () => {
 
             {activeTab === "wallet" && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                    <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Point Balance
-                    </h2>
-                    <p className="text-3xl font-bold text-blue-600">
-                      {pointBalance.toLocaleString("id-ID")}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Points can be redeemed at checkout to reduce the ticket price.
-                    </p>
+                {walletError && (
+                  <div className="flex flex-col gap-3 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-700 sm:flex-row sm:items-center sm:justify-between">
+                    <span>{walletError}</span>
+                    <button
+                      type="button"
+                      onClick={refetchWallet}
+                      className="self-start rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 shadow-sm hover:bg-rose-100 cursor-pointer sm:self-auto"
+                    >
+                      Try again
+                    </button>
                   </div>
+                )}
 
-                  <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                    <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Referral Coupons
-                    </h2>
-                    {coupons.length === 0 ? (
-                      <p className="text-sm text-slate-500">No coupons available.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {coupons.map((coupon) => (
-                          <div
-                            key={coupon.id}
-                            className="flex items-center justify-between rounded-xl bg-slate-50 p-3.5"
-                          >
-                            <span className="text-sm font-semibold text-slate-900">
-                              {coupon.discountType === "PERCENTAGE"
-                                ? `${coupon.discountValue}% off`
-                                : `${formatIDR(coupon.discountValue)} off`}
-                            </span>
-                            <span className="text-xs text-slate-400">
-                              Expires{" "}
-                              {new Date(coupon.expiredAt).toLocaleDateString("id-ID")}
-                            </span>
-                          </div>
-                        ))}
+                {walletLoading ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <Skeleton className="h-32" />
+                      <Skeleton className="h-32" />
+                    </div>
+                    <Skeleton className="h-48" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                          Point Balance
+                        </h2>
+                        <p className="text-3xl font-bold text-blue-600">
+                          {pointBalance.toLocaleString("id-ID")}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          1 point = Rp1. Points are used from the batch that expires first.
+                        </p>
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
-                  <div className="border-b border-slate-100 pb-3">
-                    <h3 className="text-sm font-bold text-slate-900">Points History</h3>
-                    <p className="text-xs text-slate-500">
-                      Track your referral points earned, redeemed, and expiration status.
-                    </p>
-                  </div>
+                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                          Referral Coupons
+                        </h2>
+                        {coupons.length === 0 ? (
+                          <p className="text-sm text-slate-500">No coupons available.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {coupons.map((coupon) => (
+                              <div
+                                key={coupon.id}
+                                className="flex flex-col gap-1 rounded-xl bg-slate-50 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+                              >
+                                <span className="text-sm font-semibold text-slate-900">
+                                  {coupon.discountType === "PERCENTAGE"
+                                    ? `${coupon.discountValue}% off`
+                                    : `${formatIDR(coupon.discountValue)} off`}
+                                </span>
+                                <span className="text-xs text-slate-400">
+                                  Expires {formatShortDate(coupon.expiredAt)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs min-w-140">
-                      <thead className="border-b border-slate-100 bg-slate-50/80 text-slate-500 uppercase font-semibold">
-                        <tr>
-                          <th className="py-3 px-4">Source / Transaction</th>
-                          <th className="py-3 px-4">Type</th>
-                          <th className="py-3 px-4 text-right">Points</th>
-                          <th className="py-3 px-4 text-center">Date</th>
-                          <th className="py-3 px-4 text-center">Expires On</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {pointHistory.length > 0 ? (
-                            pointHistory.map((item: any) => {
-                              const pointAmount = item.point ?? item.amount ?? 0;
-                              const isEarned = item.type === "EARN" || item.type === "EARNED";
-                              const isExpired =
-                                item.type === "EXPIRED" ||
-                                (item.expiredAt ? new Date(item.expiredAt) < new Date() : false);
+                    <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
+                      <div className="border-b border-slate-100 pb-3">
+                        <h3 className="text-sm font-bold text-slate-900">Point Batches</h3>
+                        <p className="text-xs text-slate-500">
+                          Each referral reward is valid for 3 months from the date it was earned.
+                        </p>
+                      </div>
 
-                              return (
-                                <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                                  <td className="py-3.5 px-4 font-medium text-slate-800">
-                                    {item.description || "Referral Points"}
-                                  </td>
-                                  <td className="py-3.5 px-4">
-                                    <span
-                                      className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                                        isExpired
-                                          ? "bg-rose-100 text-rose-700"
-                                          : isEarned
-                                          ? "bg-emerald-100 text-emerald-700"
-                                          : "bg-blue-100 text-blue-700"
-                                      }`}
-                                    >
-                                      {isExpired ? "EXPIRED" : isEarned ? "EARNED" : item.type}
-                                    </span>
-                                  </td>
-                                  <td
-                                    className={`py-3.5 px-4 text-right font-bold ${
-                                      isExpired
-                                        ? "text-slate-400 line-through"
-                                        : isEarned
-                                        ? "text-emerald-600"
-                                        : "text-rose-600"
-                                    }`}
-                                  >
-                                    {isEarned && !isExpired
-                                      ? `+${pointAmount.toLocaleString("id-ID")}`
-                                      : `-${pointAmount.toLocaleString("id-ID")}`}
-                                  </td>
-                                  <td className="py-3.5 px-4 text-center text-slate-500">
-                                    {new Date(item.createdAt).toLocaleDateString("id-ID", {
-                                      day: "2-digit",
-                                      month: "short",
-                                      year: "numeric",
-                                    })}
-                                  </td>
-                                  <td className="py-3.5 px-4 text-center">
-                                    {item.expiredAt ? (
+                      {pointBatches.length === 0 ? (
+                        <EmptyState message="No points yet. Share your referral code to earn 10.000 points per sign-up." />
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-140 text-left text-xs">
+                            <thead className="border-b border-slate-100 bg-slate-50/80 text-slate-500 uppercase font-semibold">
+                              <tr>
+                                <th className="py-3 px-4">Earned</th>
+                                <th className="py-3 px-4 text-right">Amount</th>
+                                <th className="py-3 px-4 text-right">Remaining</th>
+                                <th className="py-3 px-4 text-center">Expires On</th>
+                                <th className="py-3 px-4 text-center">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {pointBatches.map((batch) => {
+                                const status = getBatchStatus(batch);
+                                return (
+                                  <tr key={batch.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="py-3.5 px-4 text-slate-600">
+                                      {formatShortDate(batch.earnedAt)}
+                                    </td>
+                                    <td className="py-3.5 px-4 text-right text-slate-600">
+                                      {batch.amount.toLocaleString("id-ID")}
+                                    </td>
+                                    <td className="py-3.5 px-4 text-right font-bold text-slate-900">
+                                      {batch.remaining.toLocaleString("id-ID")}
+                                    </td>
+                                    <td className="py-3.5 px-4 text-center text-slate-500">
+                                      {formatShortDate(batch.expiredAt)}
+                                    </td>
+                                    <td className="py-3.5 px-4 text-center">
                                       <span
-                                        className={`text-[11px] font-medium ${
-                                          isExpired ? "text-rose-500 font-semibold" : "text-slate-400"
+                                        className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${status.className}`}
+                                      >
+                                        {status.label}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
+                      <div className="border-b border-slate-100 pb-3">
+                        <h3 className="text-sm font-bold text-slate-900">Points History</h3>
+                        <p className="text-xs text-slate-500">
+                          Points earned from referrals, used at checkout, and refunded from cancelled transactions.
+                        </p>
+                      </div>
+
+                      {pointHistory.length === 0 ? (
+                        <EmptyState message="No point history found." />
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-140 text-left text-xs">
+                            <thead className="border-b border-slate-100 bg-slate-50/80 text-slate-500 uppercase font-semibold">
+                              <tr>
+                                <th className="py-3 px-4">Source / Transaction</th>
+                                <th className="py-3 px-4">Type</th>
+                                <th className="py-3 px-4 text-right">Points</th>
+                                <th className="py-3 px-4 text-center">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {pointHistory.map((item) => {
+                                const isEarned = item.point > 0;
+                                return (
+                                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="py-3.5 px-4 font-medium text-slate-800">
+                                      {item.description || "Referral Points"}
+                                    </td>
+                                    <td className="py-3.5 px-4">
+                                      <span
+                                        className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                          isEarned
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-blue-100 text-blue-700"
                                         }`}
                                       >
-                                        {new Date(item.expiredAt).toLocaleDateString("id-ID", {
-                                          day: "2-digit",
-                                          month: "short",
-                                          year: "numeric",
-                                        })}
+                                        {isEarned ? "EARNED" : "REDEEMED"}
                                       </span>
-                                    ) : (
-                                      <span className="text-slate-300">-</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          ) : (
-                            <tr>
-                              <td colSpan={5} className="py-8 text-center text-slate-400">
-                                No point history found.
-                              </td>
-                            </tr>
-                          )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                                    </td>
+                                    <td
+                                      className={`py-3.5 px-4 text-right font-bold ${
+                                        isEarned ? "text-emerald-600" : "text-rose-600"
+                                      }`}
+                                    >
+                                      {isEarned ? "+" : "-"}
+                                      {Math.abs(item.point).toLocaleString("id-ID")}
+                                    </td>
+                                    <td className="py-3.5 px-4 text-center text-slate-500">
+                                      {formatShortDate(item.createdAt)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

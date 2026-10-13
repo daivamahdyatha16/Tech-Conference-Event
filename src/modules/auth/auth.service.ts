@@ -1,13 +1,33 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { PointType, DiscountType, UserRole } from "@prisma/client";
+import { randomBytes } from "crypto";
+import { DiscountType, Prisma, UserRole } from "@prisma/client";
 import { prisma } from "../../configs/prisma";
 import { AppError } from "../../errors/AppError";
+import { PointService } from "../point/point.service";
+import {
+  getCouponExpiry,
+  REFERRAL_COUPON_PERCENTAGE,
+} from "../point/point.utils";
+import { RegisterInput } from "./auth.validation";
+
+const REFERRAL_CODE_MAX_ATTEMPTS = 5;
+
+export const generateReferralCode = () =>
+  `REF-${randomBytes(4).toString("hex").toUpperCase()}`;
+
+const isReferralCodeConflict = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2002" &&
+  ((error.meta?.target as string[] | string | undefined) ?? "")
+    .toString()
+    .includes("referral_code");
 
 export class AuthService {
-  static async register(dto: any) {
-    const { fullName, email, phoneNumber, password, role, referredByCode } = dto;
-    const userRole = role || UserRole.ATTENDEE;
+  static async register(dto: RegisterInput) {
+    const { fullName, email, phoneNumber, password, role } = dto;
+    const userRole = role ?? UserRole.ATTENDEE;
+    const referredByCode = dto.referredByCode?.trim().toUpperCase() || undefined;
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -26,17 +46,18 @@ export class AuthService {
       }
     }
 
-    let referrer = null;
+    let referrer: { id: number } | null = null;
     if (referredByCode) {
-      if (userRole === UserRole.ORGANIZER || userRole === "ORGANIZER") {
+      if (userRole === UserRole.ORGANIZER) {
         throw new AppError(
           "Event Organizers cannot register using a referral code",
           400
         );
       }
 
-      referrer = await prisma.user.findUnique({
-        where: { referralCode: referredByCode },
+      referrer = await prisma.user.findFirst({
+        where: { referralCode: referredByCode, role: UserRole.ATTENDEE },
+        select: { id: true },
       });
 
       if (!referrer) {
@@ -46,55 +67,56 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const ownReferralCode =
-      userRole === UserRole.ATTENDEE || userRole === "ATTENDEE"
-        ? `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-        : null;
+    for (let attempt = 0; attempt < REFERRAL_CODE_MAX_ATTEMPTS; attempt++) {
+      try {
+        const newUser = await prisma.$transaction(async (tx) => {
+          const now = new Date();
+          const user = await tx.user.create({
+            data: {
+              fullName,
+              email,
+              phoneNumber,
+              password: hashedPassword,
+              role: userRole,
+              referralCode:
+                userRole === UserRole.ATTENDEE ? generateReferralCode() : null,
+              referredById: referrer?.id ?? null,
+            },
+          });
 
-    const newUser = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          fullName,
-          email,
-          phoneNumber,
-          password: hashedPassword,
-          role: userRole,
-          referralCode: ownReferralCode,
-        },
-      });
+          if (referrer) {
+            await PointService.grantReferralReward(
+              tx,
+              referrer.id,
+              user.fullName,
+              now,
+            );
 
-      if (referrer && (userRole === UserRole.ATTENDEE || userRole === "ATTENDEE")) {
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 3);
+            await tx.coupon.create({
+              data: {
+                userId: user.id,
+                discountType: DiscountType.PERCENTAGE,
+                discountValue: REFERRAL_COUPON_PERCENTAGE,
+                expiredAt: getCouponExpiry(now),
+              },
+            });
+          }
 
-        await tx.pointHistory.create({
-          data: {
-            userId: referrer.id,
-            point: 10000,
-            type: PointType.EARN,
-            description: `Referral reward from ${user.fullName} registration`,
-            expiredAt: expiryDate,
-          },
+          return user;
         });
 
-        await tx.coupon.create({
-          data: {
-            userId: user.id,
-            discountType: DiscountType.PERCENTAGE,
-            discountValue: 10,
-            expiredAt: expiryDate,
-          },
-        });
+        const { password: _, ...userWithoutPassword } = newUser;
+        return userWithoutPassword;
+      } catch (error) {
+        if (isReferralCodeConflict(error)) continue;
+        throw error;
       }
+    }
 
-      return user;
-    });
-
-    const { password: _, ...userWithoutPassword } = newUser;
-    return userWithoutPassword;
+    throw new AppError("Failed to generate a referral code, please try again", 500);
   }
 
-  static async login(dto: any) {
+  static async login(dto: { email: string; password: string }) {
     const { email, password } = dto;
     const user = await prisma.user.findUnique({
       where: { email },
@@ -141,13 +163,19 @@ export class AuthService {
 
     const now = new Date();
 
-    const [pointAggregate, coupons, pointHistory] = await Promise.all([
-      prisma.pointHistory.aggregate({
-        where: {
-          userId: user.id,
-          OR: [{ expiredAt: null }, { expiredAt: { gte: now } }],
+    const [pointBalance, pointBatches, coupons, pointHistory] = await Promise.all([
+      PointService.getBalance(user.id, now),
+      prisma.pointBatch.findMany({
+        where: { userId: user.id },
+        orderBy: { expiredAt: "asc" },
+        select: {
+          id: true,
+          source: true,
+          amount: true,
+          remaining: true,
+          earnedAt: true,
+          expiredAt: true,
         },
-        _sum: { point: true },
       }),
       prisma.coupon.findMany({
         where: {
@@ -182,7 +210,8 @@ export class AuthService {
 
     return {
       ...user,
-      pointBalance: pointAggregate._sum.point || 0,
+      pointBalance,
+      pointBatches,
       coupons,
       pointHistory,
     };

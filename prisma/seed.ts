@@ -4,6 +4,7 @@ import { seedUsers } from "./seeds/users";
 import { seedConferences } from "./seeds/conferences";
 import { seedTicketTypes } from "./seeds/ticket-types";
 import { seedTransactions } from "./seeds/transactions";
+import { seedRewards } from "./seeds/rewards";
 
 const prisma = new PrismaClient();
 
@@ -16,6 +17,7 @@ async function main() {
   await seedConferences();
   await seedTicketTypes();
   await seedTransactions();
+  await seedRewards();
 
   console.log("✅ Seed finished.");
 }

@@ -15,11 +15,15 @@ model User {
   role                 UserRole
   referralCode         String?        @unique @map("referral_code")
   phoneNumber          String?        @unique @map("phone_number")
+  referredById         Int?           @map("referred_by_id")
   createdAt            DateTime       @default(now()) @map("created_at")
   updatedAt            DateTime       @updatedAt @map("updated_at")
+  referredBy           User?          @relation("Referral", fields: [referredById], references: [id])
+  referrals            User[]         @relation("Referral")
   organizedConferences Conference[]
   coupons              Coupon[]
   pointHistories       PointHistory[]
+  pointBatches         PointBatch[]
   reviews              Review[]
   transactions         Transaction[]
 
@@ -117,26 +121,55 @@ model PointHistory {
   @@map("point_histories")
 }
 
+model PointBatch {
+  id          Int               @id @default(autoincrement())
+  userId      Int               @map("user_id")
+  source      PointSource
+  amount      Int
+  remaining   Int
+  earnedAt    DateTime          @default(now()) @map("earned_at")
+  expiredAt   DateTime          @map("expired_at")
+  user        User              @relation(fields: [userId], references: [id])
+  redemptions PointRedemption[]
+
+  @@index([userId, expiredAt])
+  @@map("point_batches")
+}
+
+model PointRedemption {
+  id            Int         @id @default(autoincrement())
+  transactionId Int         @map("transaction_id")
+  batchId       Int         @map("batch_id")
+  amount        Int
+  refundedAt    DateTime?   @map("refunded_at")
+  batch         PointBatch  @relation(fields: [batchId], references: [id])
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  @@unique([transactionId, batchId])
+  @@map("point_redemptions")
+}
+
 model Transaction {
-  id           Int               @id @default(autoincrement())
-  userId       Int               @map("user_id")
-  conferenceId Int               @map("conference_id")
-  ticketTypeId Int               @map("ticket_type_id")
-  couponId     Int?              @map("coupon_id")
-  quantity     Int
-  subtotal     Float
-  discount     Float             @default(0)
-  pointUsed    Int               @default(0) @map("point_used")
-  totalPrice   Float             @map("total_price")
-  paymentProof String?           @map("payment_proof")
-  paymentDate  DateTime?         @map("payment_date")
-  expiresAt    DateTime          @map("expires_at")
-  status       TransactionStatus
-  createdAt    DateTime          @default(now()) @map("created_at")
-  conference   Conference        @relation(fields: [conferenceId], references: [id])
-  coupon       Coupon?           @relation(fields: [couponId], references: [id])
-  ticketType   TicketType        @relation(fields: [ticketTypeId], references: [id])
-  user         User              @relation(fields: [userId], references: [id])
+  id               Int               @id @default(autoincrement())
+  userId           Int               @map("user_id")
+  conferenceId     Int               @map("conference_id")
+  ticketTypeId     Int               @map("ticket_type_id")
+  couponId         Int?              @map("coupon_id")
+  quantity         Int
+  subtotal         Float
+  discount         Float             @default(0)
+  pointUsed        Int               @default(0) @map("point_used")
+  totalPrice       Float             @map("total_price")
+  paymentProof     String?           @map("payment_proof")
+  paymentDate      DateTime?         @map("payment_date")
+  expiresAt        DateTime          @map("expires_at")
+  status           TransactionStatus
+  createdAt        DateTime          @default(now()) @map("created_at")
+  conference       Conference        @relation(fields: [conferenceId], references: [id])
+  coupon           Coupon?           @relation(fields: [couponId], references: [id])
+  ticketType       TicketType        @relation(fields: [ticketTypeId], references: [id])
+  user             User              @relation(fields: [userId], references: [id])
+  pointRedemptions PointRedemption[]
 
   @@map("transactions")
 }
@@ -173,6 +206,10 @@ enum PromotionType {
 enum DiscountType {
   PERCENTAGE
   NOMINAL
+}
+
+enum PointSource {
+  REFERRAL
 }
 
 enum PointType {

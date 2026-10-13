@@ -1,10 +1,5 @@
-import { addHours, addMonths } from "date-fns"; 
-import {
-  ConferenceStatus,
-  TransactionStatus,
-  PointType,
-  DiscountType,
-} from "@prisma/client";
+import { addHours } from "date-fns";
+import { ConferenceStatus, Prisma, TransactionStatus } from "@prisma/client";
 
 import { TransactionRepository } from "./transaction.repository";
 import { TicketTypeRepository } from "../ticket/ticket-type.repository";
@@ -14,6 +9,13 @@ import { CreateTransactionDTO } from "./transaction.interface";
 import { NotFoundError } from "../../errors/NotFoundError";
 import { AppError } from "../../errors/AppError";
 import { prisma } from "../../configs/prisma";
+import { PointService } from "../point/point.service";
+import {
+  calculateFinalPrice,
+  DiscountRule,
+  InsufficientPointsError,
+  InvalidPointAmountError,
+} from "../point/point.utils";
 
 export class TransactionService {
   private transactionRepository = new TransactionRepository();
@@ -21,7 +23,8 @@ export class TransactionService {
   private conferenceRepository = new ConferenceRepository();
 
   async create(data: CreateTransactionDTO & { userId: number }) {
-    const { ticketTypeId, quantity, userId, couponId, pointUsed } = data;
+    const { ticketTypeId, quantity, userId, couponId } = data;
+    const requestedPoints = data.pointUsed ?? 0;
 
     const ticketType = await this.ticketTypeRepository.findById(ticketTypeId);
 
@@ -48,12 +51,17 @@ export class TransactionService {
     const subtotal = ticketType.price * quantity;
     const expiresAt = addHours(new Date(), 2);
 
-    const transaction = await prisma.$transaction(async (tx) => {
-      let promotionDiscount = 0;
-      let couponDiscount = 0;
-      let actualPointUsed = 0;
-
+    return prisma.$transaction(async (tx) => {
       const now = new Date();
+
+      const seatUpdate = await tx.ticketType.updateMany({
+        where: { id: ticketType.id, availableSeat: { gte: quantity } },
+        data: { availableSeat: { decrement: quantity } },
+      });
+
+      if (seatUpdate.count === 0) {
+        throw new AppError("Not enough seats available", 400);
+      }
 
       const promotion = await tx.promotion.findFirst({
         where: {
@@ -63,175 +71,176 @@ export class TransactionService {
         },
       });
 
-      const promotionEligible =
-        promotion &&
-        (promotion.quota === null || promotion.usageCount < promotion.quota);
-
-      if (promotion && promotionEligible) {
-        if (promotion.discountType === DiscountType.PERCENTAGE) {
-          promotionDiscount = (subtotal * promotion.discountValue) / 100;
-        } else {
-          promotionDiscount = promotion.discountValue;
-        }
-
-        await tx.promotion.update({
-          where: { id: promotion.id },
+      let promotionRule: DiscountRule = null;
+      if (promotion) {
+        const promotionClaim = await tx.promotion.updateMany({
+          where: {
+            id: promotion.id,
+            ...(promotion.quota !== null && {
+              usageCount: { lt: promotion.quota },
+            }),
+          },
           data: { usageCount: { increment: 1 } },
         });
+
+        if (promotionClaim.count > 0) {
+          promotionRule = {
+            type: promotion.discountType,
+            value: promotion.discountValue,
+          };
+        }
       }
 
-      const remainingAfterPromotion = Math.max(0, subtotal - promotionDiscount);
-
+      let couponRule: DiscountRule = null;
       if (couponId) {
         const coupon = await tx.coupon.findFirst({
+          where: { id: couponId, userId },
+        });
+
+        const couponClaim = await tx.coupon.updateMany({
           where: {
             id: couponId,
             userId,
             isUsed: false,
-            expiredAt: { gte: new Date() },
+            expiredAt: { gt: now },
           },
+          data: { isUsed: true, usedAt: now },
         });
 
-        if (!coupon) {
+        if (!coupon || couponClaim.count === 0) {
           throw new AppError("The coupon is invalid or has expired", 400);
         }
 
-        if (coupon.discountType === DiscountType.PERCENTAGE) {
-          couponDiscount = (remainingAfterPromotion * coupon.discountValue) / 100;
-        } else {
-          couponDiscount = coupon.discountValue;
-        }
-
-        await tx.coupon.update({
-          where: { id: coupon.id },
-          data: { isUsed: true },
-        });
+        couponRule = {
+          type: coupon.discountType,
+          value: coupon.discountValue,
+        };
       }
 
-      const remainingPriceAfterCoupon = Math.max(
-        0,
-        remainingAfterPromotion - couponDiscount,
-      );
+      const availablePoints =
+        requestedPoints > 0
+          ? (await PointService.lockActiveBatches(tx, userId, now)).reduce(
+              (sum, batch) => sum + batch.remaining,
+              0,
+            )
+          : 0;
 
-      if (pointUsed && pointUsed > 0) {
-        const userPoints = await tx.pointHistory.aggregate({
-          where: {
-            userId,
-            OR: [{ expiredAt: null }, { expiredAt: { gte: new Date() } }],
-          },
-          _sum: { point: true },
+      let pricing: ReturnType<typeof calculateFinalPrice>;
+      try {
+        pricing = calculateFinalPrice({
+          subtotal,
+          promotion: promotionRule,
+          coupon: couponRule,
+          requestedPoints,
+          availablePoints,
         });
-
-        const totalAvailablePoints = userPoints._sum.point || 0;
-
-        if (pointUsed > totalAvailablePoints) {
-          throw new AppError("You do not have enough points", 400);
+      } catch (error) {
+        if (
+          error instanceof InsufficientPointsError ||
+          error instanceof InvalidPointAmountError
+        ) {
+          throw new AppError(error.message, 400);
         }
-
-        actualPointUsed = Math.min(pointUsed, remainingPriceAfterCoupon);
-
-        await tx.pointHistory.create({
-          data: {
-            userId,
-            point: -actualPointUsed,
-            type: PointType.REDEEM,
-            description: `Points used on ticket transaction`,
-            expiredAt: null,
-          },
-        });
+        throw error;
       }
-
-      const totalPrice = Math.max(0, remainingPriceAfterCoupon - actualPointUsed);
 
       const newTransaction = await tx.transaction.create({
         data: {
           quantity,
           subtotal,
-          discount: promotionDiscount + couponDiscount,
-          pointUsed: actualPointUsed,
-          totalPrice,
+          discount: pricing.promotionDiscount + pricing.couponDiscount,
+          pointUsed: pricing.pointUsed,
+          totalPrice: pricing.totalPrice,
           expiresAt,
           status:
-            totalPrice === 0
+            pricing.totalPrice === 0
               ? TransactionStatus.APPROVED
               : TransactionStatus.WAITING_PAYMENT,
-
-          user: {
-            connect: { id: userId },
-          },
-
-          conference: {
-            connect: { id: conference.id },
-          },
-
-          ticketType: {
-            connect: { id: ticketType.id },
-          },
-
-          ...(couponId && {
-            coupon: {
-              connect: { id: couponId },
-            },
-          }),
+          user: { connect: { id: userId } },
+          conference: { connect: { id: conference.id } },
+          ticketType: { connect: { id: ticketType.id } },
+          ...(couponId && { coupon: { connect: { id: couponId } } }),
         },
       });
 
-      await tx.ticketType.update({
-        where: { id: ticketType.id },
-        data: {
-          availableSeat: { decrement: quantity },
-        },
-      });
+      await PointService.redeemFifo(
+        tx,
+        userId,
+        newTransaction.id,
+        pricing.pointUsed,
+        now,
+      );
 
       return newTransaction;
     });
+  }
 
-    return transaction;
+  private async releaseResources(
+    tx: Prisma.TransactionClient,
+    transaction: {
+      id: number;
+      ticketTypeId: number;
+      quantity: number;
+      couponId: number | null;
+    },
+    now: Date,
+  ) {
+    await tx.ticketType.update({
+      where: { id: transaction.ticketTypeId },
+      data: { availableSeat: { increment: transaction.quantity } },
+    });
+
+    await PointService.refund(tx, transaction.id, now);
+
+    if (transaction.couponId) {
+      await tx.coupon.update({
+        where: { id: transaction.couponId },
+        data: { isUsed: false, usedAt: null },
+      });
+    }
   }
 
   async expireTransactionIfDue(transactionId: number) {
     return prisma.$transaction(async (tx) => {
+      const now = new Date();
+
+      const { count } = await tx.transaction.updateMany({
+        where: {
+          id: transactionId,
+          status: TransactionStatus.WAITING_PAYMENT,
+          expiresAt: { lt: now },
+        },
+        data: { status: TransactionStatus.CANCELLED },
+      });
+
       const transaction = await tx.transaction.findUnique({
         where: { id: transactionId },
       });
 
-      if (
-        !transaction ||
-        transaction.status !== TransactionStatus.WAITING_PAYMENT ||
-        transaction.expiresAt >= new Date()
-      ) {
+      if (count === 0 || !transaction) {
         return transaction;
       }
 
-      await tx.ticketType.update({
-        where: { id: transaction.ticketTypeId },
-        data: { availableSeat: { increment: transaction.quantity } },
-      });
+      await this.releaseResources(tx, transaction, now);
 
-      if (transaction.pointUsed > 0) {
-        await tx.pointHistory.create({
-          data: {
-            userId: transaction.userId,
-            point: transaction.pointUsed,
-            type: PointType.EARN,
-            description: `Refund points from expired transaction #${transaction.id}`,
-            expiredAt: addMonths(new Date(), 3), 
-          },
-        });
-      }
-
-      if (transaction.couponId) {
-        await tx.coupon.update({
-          where: { id: transaction.couponId },
-          data: { isUsed: false },
-        });
-      }
-
-      return tx.transaction.update({
-        where: { id: transactionId },
-        data: { status: TransactionStatus.CANCELLED },
-      });
+      return transaction;
     });
+  }
+
+  async expireAllDueTransactions() {
+    const dueTransactions = await prisma.transaction.findMany({
+      where: {
+        status: TransactionStatus.WAITING_PAYMENT,
+        expiresAt: { lt: new Date() },
+      },
+      select: { id: true },
+    });
+
+    for (const { id } of dueTransactions) {
+      await this.expireTransactionIfDue(id);
+    }
+
+    return dueTransactions.length;
   }
 
   async findMyTransactions(userId: number) {
@@ -279,11 +288,28 @@ export class TransactionService {
       );
     }
 
-    return await this.transactionRepository.update(transactionId, {
-      paymentProof,
-      paymentDate: new Date(),
-      status: TransactionStatus.WAITING_CONFIRMATION,
+    const { count } = await prisma.transaction.updateMany({
+      where: {
+        id: transactionId,
+        userId,
+        status: TransactionStatus.WAITING_PAYMENT,
+        expiresAt: { gte: new Date() },
+      },
+      data: {
+        paymentProof,
+        paymentDate: new Date(),
+        status: TransactionStatus.WAITING_CONFIRMATION,
+      },
     });
+
+    if (count === 0) {
+      throw new AppError(
+        "This transaction cannot upload a payment proof",
+        400,
+      );
+    }
+
+    return prisma.transaction.findUnique({ where: { id: transactionId } });
   }
 
   async approveTransaction(transactionId: number, organizerId: number) {
@@ -330,44 +356,23 @@ export class TransactionService {
     }
 
     return await prisma.$transaction(async (tx) => {
-      await tx.ticketType.update({
-        where: {
-          id: transaction.ticketTypeId,
-        },
-        data: {
-          availableSeat: {
-            increment: transaction.quantity,
-          },
-        },
-      });
+      const now = new Date();
 
-      if (transaction.pointUsed > 0) {
-        await tx.pointHistory.create({
-          data: {
-            userId: transaction.userId,
-            point: transaction.pointUsed,
-            type: PointType.EARN,
-            description: `Refund points from rejected transaction #${transaction.id}`,
-            expiredAt: addMonths(new Date(), 3),
-          },
-        });
-      }
-
-      if (transaction.couponId) {
-        await tx.coupon.update({
-          where: { id: transaction.couponId },
-          data: { isUsed: false },
-        });
-      }
-
-      return await tx.transaction.update({
+      const { count } = await tx.transaction.updateMany({
         where: {
           id: transactionId,
+          status: TransactionStatus.WAITING_CONFIRMATION,
         },
-        data: {
-          status: TransactionStatus.REJECTED,
-        },
+        data: { status: TransactionStatus.REJECTED },
       });
+
+      if (count === 0) {
+        throw new AppError("This transaction cannot be rejected", 400);
+      }
+
+      await this.releaseResources(tx, transaction, now);
+
+      return tx.transaction.findUniqueOrThrow({ where: { id: transactionId } });
     });
   }
 }

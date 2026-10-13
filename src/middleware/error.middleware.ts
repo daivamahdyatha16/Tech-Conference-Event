@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
 import multer from "multer";
+import { Prisma } from "@prisma/client";
 import { AppError } from "../errors/AppError";
 
 export const errorMiddleware = (
@@ -34,9 +35,19 @@ export const errorMiddleware = (
     });
   }
 
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === "P2002"
+  ) {
+    return res.status(409).json({
+      success: false,
+      message: "Data already exists",
+    });
+  }
+
   console.error("Unhandled Error:", err);
   return res.status(500).json({
     success: false,
-    message: err.message || "Internal Server Error",
+    message: "Internal Server Error",
   });
 };
