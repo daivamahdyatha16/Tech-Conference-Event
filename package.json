@@ -12,7 +12,8 @@
     "prisma:seed": "prisma db seed",
     "prisma:dedupe-conferences": "tsx prisma/scripts/remove-duplicate-conferences.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",

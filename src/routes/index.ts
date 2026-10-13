@@ -8,6 +8,7 @@ import { PromotionRoute } from "../modules/promotion/promotion.route";
 import { ReviewRouter } from "../modules/review/review.route";
 import { AuthRouter } from "../modules/auth/auth.router";
 import { DashboardRouter } from "../modules/dashboard/dashboard.router";
+import { JobRouter } from "../modules/job/job.router";
 
 const router = Router();
 
@@ -18,6 +19,7 @@ const promotionRoute = new PromotionRoute();
 const reviewRouter = new ReviewRouter();
 const authRouter = new AuthRouter();
 const dashboardRouter = new DashboardRouter();
+const jobRouter = new JobRouter();
 
 
 router.use("/conferences", conferenceRoute.router);
@@ -35,5 +37,7 @@ router.use("/reviews", reviewRouter.getRouter());
 router.use("/auth", authRouter.router);
 
 router.use("/dashboard", dashboardRouter.router);
+
+router.use("/jobs", jobRouter.router);
 
 export default router;
